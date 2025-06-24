@@ -6,8 +6,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication
 public class SistemaDeInventariosV02Application {
 
-	public static void main(String[] args) {
-		SpringApplication.run(SistemaDeInventariosV02Application.class, args);
-	}
+    public static void main(String[] args) {
+        SpringApplication.run(SistemaDeInventariosV02Application.class, args);
+    }
 
 }

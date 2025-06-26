@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <title>Kaiadmin - Gestión de Productos</title>
+    <meta content="width=device-width, initial-scale=1.0, shrink-to-fit=no" name="viewport" />
+    <link rel="icon" th:href="@{/assets/img/kaiadmin/favicon.ico}" type="image/x-icon" />
+
+    <!-- Fonts and icons -->
+    <script th:src="@{/assets/js/plugin/webfont/webfont.min.js}"></script>
+    <script>
+        WebFont.load({
+            google: { families: ["Public Sans:300,400,500,600,700"] },
+            custom: {
+                families: [
+                    "Font Awesome 5 Solid",
+                    "Font Awesome 5 Regular",
+                    "Font Awesome 5 Brands",
+                    "simple-line-icons",
+                ],
+                urls: [/*[[@{/assets/css/fonts.min.css}]]*/],
+            },
+            active: function () {
+                sessionStorage.fonts = true;
+            },
+        });
+    </script>
+
+    <!-- CSS Files -->
+    <link rel="stylesheet" th:href="@{/assets/css/bootstrap.min.css}" />
+    <link rel="stylesheet" th:href="@{/assets/css/plugins.min.css}" />
+    <link rel="stylesheet" th:href="@{/assets/css/kaiadmin.min.css}" />
+
+    <!-- Datatables CSS -->
+    <link rel="stylesheet" th:href="@{/assets/css/plugin/datatables/datatables.min.css}" />
+
+    <!-- Sweet Alert CSS -->
+    <link rel="stylesheet" th:href="@{/assets/css/plugin/sweetalert/sweetalert.css}" />
+</head>
+<body>
+<div class="wrapper">
+    <!-- Sidebar (igual que en index.html) -->
+    <div th:replace="~{index :: sidebar}"></div>
+
+    <div class="main-panel">
+        <!-- Header (igual que en index.html) -->
+        <div th:replace="~{index :: main-header}"></div>
+
+        <div class="container">
+            <div class="page-inner">
+                <div class="d-flex align-items-left align-items-md-center flex-column flex-md-row pt-2 pb-4">
+                    <div>
+                        <h3 class="fw-bold mb-3">Gestión de Productos</h3>
+                        <h6 class="op-7 mb-2">Administra el inventario de productos</h6>
+                    </div>
+                    <div class="ms-md-auto py-2 py-md-0 me-3">
+                        <div class="input-group">
+                            <input type="text" id="globalSearchInput" class="form-control"
+                                   placeholder="Buscar por nombre o categoría...">
+                            <div class="input-group-append">
+                            <span class="input-group-text">
+                                <i class="fa fa-search"></i>
+                            </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="ms-md-auto py-2 py-md-0">
+                        <button class="btn btn-primary btn-round" data-bs-toggle="modal" data-bs-target="#addProductModal">
+                            <i class="fas fa-plus"></i> Agregar Producto
+                        </button>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="card card-round">
+                            <div class="card-header">
+                                <div class="card-head-row">
+                                    <div class="card-title">Lista de Productos</div>
+
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table id="productsTable" class="display table table-striped table-hover">
+                                        <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Nombre</th>
+                                            <th>Categoría</th>
+                                            <th>Precio</th>
+                                            <th>Stock</th>
+                                            <th>Estado</th>
+                                            <th>Acciones</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody id="productsTableBody">
+                                        <!-- Los productos se cargarán aquí dinámicamente -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer class="footer">
+            <div class="container-fluid d-flex justify-content-between">
+                <nav class="pull-left">
+                    <ul class="nav">
+                        <li class="nav-item">
+                            <a class="nav-link" href="http://www.themekita.com">ThemeKita</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#">Help</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#">Licenses</a>
+                        </li>
+                    </ul>
+                </nav>
+                <div class="copyright">
+                    2024, made with <i class="fa fa-heart heart text-danger"></i> by
+                    <a href="http://www.themekita.com">ThemeKita</a>
+                </div>
+                <div>
+                    Distributed by
+                    <a target="_blank" href="https://themewagon.com/">ThemeWagon</a>.
+                </div>
+            </div>
+        </footer>
+    </div>
+</div>
+
+<!-- Modal para agregar/editar producto -->
+<div class="modal fade" id="addProductModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">Agregar Nuevo Producto</h5>
+                <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="productForm">
+                    <input type="hidden" id="productId">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="name">Nombre del Producto</label>
+                                <input type="text" class="form-control" id="name" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="category">Categoría</label>
+                                <div class="input-group">
+                                    <select class="form-control" id="category" required>
+                                        <option value="">Seleccione una categoría</option>
+                                    </select>
+                                    <button class="btn btn-outline-secondary" type="button" id="btnToggleCategory">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                </div>
+                                <div id="freeCategoryInput" class="mt-2" style="display: none;">
+                                    <input type="text" class="form-control" id="freeCategory"
+                                           placeholder="Escriba una nueva categoría">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="price">Precio</label>
+                                <input type="number" step="0.01" class="form-control" id="price" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="stock">Stock</label>
+                                <input type="number" class="form-control" id="stock" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="description">Descripción</label>
+                        <textarea class="form-control" id="description" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="saveProduct">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!--   Core JS Files   -->
+<script th:src="@{/assets/js/core/jquery-3.7.1.min.js}"></script>
+<script th:src="@{/assets/js/core/popper.min.js}"></script>
+<script th:src="@{/assets/js/core/bootstrap.min.js}"></script>
+
+<!-- jQuery Scrollbar -->
+<script th:src="@{/assets/js/plugin/jquery-scrollbar/jquery.scrollbar.min.js}"></script>
+
+<!-- Datatables -->
+<script th:src="@{/assets/js/plugin/datatables/datatables.min.js}"></script>
+
+<!-- Sweet Alert -->
+<script th:src="@{/assets/js/plugin/sweetalert/sweetalert.min.js}"></script>
+
+<!-- Kaiadmin JS -->
+<script th:src="@{/assets/js/kaiadmin.min.js}"></script>
+
+<!-- Script para manejar productos -->
+<script>
+    $(document).ready(function() {
+        const table = $('#productsTable').DataTable({
+            "language": {
+                "url": "//cdn.datatables.net/plug-ins/1.10.21/i18n/Spanish.json"
+            }
+        });
+
+        let allProducts = [];
+
+        loadCategories();
+
+        loadProducts();
+
+        $('#globalSearchInput').on('input', function() {
+            const searchTerm = $(this).val().toLowerCase();
+            searchProducts(searchTerm);
+        });
+
+        $('#saveProduct').click(function() {
+            saveProduct();
+        });
+
+        $('#addProductModal').on('hidden.bs.modal', function() {
+            $('#productForm')[0].reset();
+            $('#productId').val('');
+            $('#modalTitle').text('Agregar Nuevo Producto');
+        });
+    });
+
+    function loadProducts() {
+        $.ajax({
+            url: '/api/products',
+            type: 'GET',
+            success: function(products) {
+                allProducts = products;
+                renderProducts(products);
+            },
+            error: function(error) {
+                console.error('Error al cargar productos:', error);
+                swal('Error', 'No se pudieron cargar los productos', 'error');
+            }
+        });
+    }
+
+    function renderProducts(products) {
+        const tableBody = $('#productsTableBody');
+        tableBody.empty();
+
+        products.forEach(product => {
+            const status = product.stock <= 0 ?
+                '<span class="badge badge-danger">Agotado</span>' :
+                (product.stock < 10 ?
+                    '<span class="badge badge-warning">Bajo stock</span>' :
+                    '<span class="badge badge-success">Disponible</span>');
+
+            const row = `
+                <tr>
+                    <td>${product.id}</td>
+                    <td>${product.name}</td>
+                    <td>${product.category}</td>
+                    <td>$${product.price.toFixed(2)}</td>
+                    <td>${product.stock}</td>
+                    <td>${status}</td>
+                    <td>
+                        <button class="btn btn-icon btn-round btn-info btn-sm me-1" onclick="editProduct(${product.id})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-icon btn-round btn-danger btn-sm" onclick="deleteProduct(${product.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+            tableBody.append(row);
+        });
+    }
+
+    function loadCategories() {
+        $.ajax({
+            url: '/api/products/categories',
+            type: 'GET',
+            success: function(categories) {
+                const categorySelect = $('#category');
+                const currentValue = categorySelect.val();
+
+                categorySelect.empty();
+                categorySelect.append('<option value="">Seleccione una categoría</option>');
+
+                categories.forEach(category => {
+                    categorySelect.append(`<option value="${category}">${category}</option>`);
+                });
+
+                if (currentValue && $(`#category option[value="${currentValue}"]`).length > 0) {
+                    categorySelect.val(currentValue);
+                } else if (currentValue === 'other') {
+                    categorySelect.val('other');
+                }
+            },
+            error: function(error) {
+                console.error('Error al cargar categorías:', error);
+            }
+        });
+    }
+
+    function searchProducts(term) {
+        if (!term) {
+            renderProducts(allProducts);
+            return;
+        }
+
+        const filteredProducts = allProducts.filter(product =>
+            product.name.toLowerCase().includes(term) ||
+            (product.category && product.category.toLowerCase().includes(term))
+        );
+
+        renderProducts(filteredProducts);
+    }
+
+    function saveProduct() {
+        const productId = $('#productId').val();
+        const category = $('#freeCategoryInput').is(':visible') ?
+            $('#freeCategory').val().trim() :
+            $('#category').val();
+
+        if (!category) {
+            swal('Error', 'La categoría es obligatoria', 'error');
+            return;
+        }
+
+        const productData = {
+            name: $('#name').val(),
+            category: category,
+            price: parseFloat($('#price').val()),
+            stock: parseInt($('#stock').val()),
+            description: $('#description').val()
+        };
+
+        const url = productId ? `/api/products/${productId}` : '/api/products';
+        const method = productId ? 'PUT' : 'POST';
+
+        $.ajax({
+            url: url,
+            type: method,
+            contentType: 'application/json',
+            data: JSON.stringify(productData),
+            success: function(response) {
+                $('#addProductModal').modal('hide');
+                swal('Éxito', productId ? 'Producto actualizado correctamente' : 'Producto creado correctamente', 'success');
+                loadProducts();
+            },
+            error: function(error) {
+                console.error('Error al guardar producto:', error);
+                swal('Error', 'No se pudo guardar el producto', 'error');
+            }
+        });
+    }
+
+    function editProduct(id) {
+        $.ajax({
+            url: `/api/products/${id}`,
+            type: 'GET',
+            success: function(product) {
+                $('#productId').val(product.id);
+                $('#name').val(product.name);
+                $('#price').val(product.price);
+                $('#stock').val(product.stock);
+                $('#description').val(product.description);
+
+                const categoryOption = $(`#category option[value="${product.category}"]`);
+                if (categoryOption.length > 0) {
+                    $('#category').val(product.category);
+                    $('#freeCategoryInput').hide();
+                    $('#btnToggleCategory').html('<i class="fas fa-edit"></i>');
+                } else {
+                    $('#category').val('other');
+                    $('#freeCategory').val(product.category);
+                    $('#freeCategoryInput').show();
+                    $('#category').hide();
+                    $('#btnToggleCategory').html('<i class="fas fa-list"></i>');
+                }
+
+                $('#modalTitle').text('Editar Producto');
+                $('#addProductModal').modal('show');
+            },
+            error: function(error) {
+                console.error('Error al cargar producto:', error);
+                swal('Error', 'No se pudo cargar el producto para editar', 'error');
+            }
+        });
+    }
+
+    function deleteProduct(id) {
+        swal({
+            title: '¿Estás seguro?',
+            text: '¡No podrás revertir esto!',
+            icon: 'warning',
+            buttons: {
+                cancel: {
+                    text: 'Cancelar',
+                    value: null,
+                    visible: true,
+                    className: 'btn btn-secondary',
+                    closeModal: true,
+                },
+                confirm: {
+                    text: 'Sí, eliminarlo',
+                    value: true,
+                    visible: true,
+                    className: 'btn btn-danger',
+                    closeModal: true
+                }
+            }
+        }).then((value) => {
+            if (value) {
+                $.ajax({
+                    url: `/api/products/${id}`,
+                    type: 'DELETE',
+                    success: function(response) {
+                        swal('Eliminado', 'El producto ha sido eliminado', 'success');
+                        loadProducts();
+                    },
+                    error: function(error) {
+                        console.error('Error al eliminar producto:', error);
+                        swal('Error', 'No se pudo eliminar el producto', 'error');
+                    }
+                });
+            }
+        });
+    }
+
+    $('#btnToggleCategory').click(function() {
+        const categorySelect = $('#category');
+        const freeInput = $('#freeCategoryInput');
+
+        if (freeInput.is(':visible')) {
+            freeInput.hide();
+            categorySelect.show();
+            $(this).html('<i class="fas fa-edit"></i>');
+        } else {
+            categorySelect.hide();
+            freeInput.show();
+            $(this).html('<i class="fas fa-list"></i>');
+            $('#freeCategory').focus();
+        }
+    });
+
+    $('#freeCategory').on('input', function() {
+        const newCategory = $(this).val().trim();
+        if (newCategory) {
+            if ($('#category option[value="other"]').length === 0) {
+                $('#category').append('<option value="other">Otra categoría</option>');
+            }
+            $('#category').val('other');
+        }
+    });
+</script>
+</body>
+</html>

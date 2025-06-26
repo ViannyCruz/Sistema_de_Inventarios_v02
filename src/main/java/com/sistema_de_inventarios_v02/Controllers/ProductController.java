@@ -17,7 +17,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/products")
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "*", allowedHeaders = "*", methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE, RequestMethod.PATCH})
 public class ProductController {
 
     private final ProductService productService;
@@ -33,7 +33,7 @@ public class ProductController {
         return new ResponseEntity<>(createdProduct, HttpStatus.CREATED);
     }
 
-    @GetMapping
+    /*@GetMapping
     public ResponseEntity<Page<ProductDTO>> getAllProducts(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -50,11 +50,20 @@ public class ProductController {
         Page<ProductDTO> products = productService.getProductsWithFilters(category, name, pageable);
 
         return ResponseEntity.ok(products);
+    }*/
+
+    @GetMapping
+    public ResponseEntity<List<ProductDTO>> getAllProducts() {
+        List<ProductDTO> products = productService.getAllProducts();
+        return ResponseEntity.ok(products);
     }
 
-    @GetMapping("/all")
-    public ResponseEntity<List<ProductDTO>> getAllProductsWithoutPagination() {
-        List<ProductDTO> products = productService.getAllProducts();
+    @GetMapping("/paginated")
+    public ResponseEntity<Page<ProductDTO>> getProductsPaginated(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<ProductDTO> products = productService.getAllProductsPaginated(pageable);
         return ResponseEntity.ok(products);
     }
 

@@ -159,4 +159,9 @@ public class ProductService {
                 productDTO.getMinimumStock()
         );
     }
+
+    public Page<ProductDTO> getAllProductsPaginated(Pageable pageable) {
+        Page<Product> productsPage = productRepository.findAll(pageable);
+        return productsPage.map(this::convertToDTO);
+    }
 }

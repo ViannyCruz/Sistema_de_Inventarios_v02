@@ -31,17 +31,12 @@
     <link rel="stylesheet" th:href="@{/assets/css/plugins.min.css}" />
     <link rel="stylesheet" th:href="@{/assets/css/kaiadmin.min.css}" />
 
-    <!-- Datatables CSS -->
-    <link rel="stylesheet" th:href="@{/assets/css/plugin/datatables/datatables.min.css}" />
+<!--    &lt;!&ndash; Datatables CSS &ndash;&gt;-->
+<!--    <link rel="stylesheet" th:href="@{/assets/css/plugin/datatables/datatables.min.css}" />-->
 
-    <!-- Sweet Alert CSS -->
-    <link rel="stylesheet" th:href="@{/assets/css/plugin/sweetalert/sweetalert.css}" />
+<!--    &lt;!&ndash; Sweet Alert CSS &ndash;&gt;-->
+<!--    <link rel="stylesheet" th:href="@{/assets/css/plugin/sweetalert/sweetalert.css}" />-->
 </head>
-<style>
-    #globalSearchInput {
-        border-radius: 10px;
-    }
-</style>
 <body>
 <div class="wrapper">
     <!-- Sidebar (igual que en index.html) -->
@@ -58,17 +53,6 @@
                         <h3 class="fw-bold mb-3">Gestión de Productos</h3>
                         <h6 class="op-7 mb-2">Administra el inventario de productos</h6>
                     </div>
-                    <!--<div class="ms-md-auto py-2 py-md-0 me-3">
-                        <div class="input-group">
-                            <label for="globalSearchInput"></label><input type="text" id="globalSearchInput" class="form-control"
-                                                                          placeholder="Buscar por nombre o categoría...">
-                            <div class="input-group-append">
-                            <span class="input-group-text">
-                                <i class="fa fa-search"></i>
-                            </span>
-                            </div>
-                        </div>
-                    </div>-->
                     <div class="ms-md-auto py-2 py-md-0">
                         <button class="btn btn-primary btn-round" data-bs-toggle="modal" data-bs-target="#addProductModal">
                             <i class="fas fa-plus"></i> Agregar Producto
@@ -77,23 +61,23 @@
                 </div>
 
                 <div class="row">
-                    <div class="col-md-12 ">
+                    <div class="col-md-12">
                         <div class="card card-round">
                             <div class="card-header">
-
-
                                 <div class="card-head-row">
                                     <div class="card-title">Lista de Productos</div>
+                                    <div class="ms-md-auto py-2 py-md-0 me-3">
+                                        <div class="input-group">
+                                            <input type="text" id="globalSearchInput" class="form-control"
+                                                   placeholder="Buscar por nombre o categoría...">
+                                            <div class="input-group-append">
+                                                <span class="input-group-text">
+                                                    <i class="fa fa-search"></i>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-
-                                <div class="input-group">
-                                    <label for="globalSearchInput"></label><input type="text" id="globalSearchInput" class="form-control"
-                                                                                  placeholder="Buscar por nombre o categoría...">
-                                </div>
-
-
-
-
                             </div>
                             <div class="card-body">
                                 <div class="table-responsive">
@@ -109,8 +93,8 @@
                                             <th>Acciones</th>
                                         </tr>
                                         </thead>
-                                        <tbody>
-                                        <!-- Los productos se cargarán automáticamente por DataTables -->
+                                        <tbody id="productsTableBody">
+                                        <!-- Los productos se cargarán aquí dinámicamente -->
                                         </tbody>
                                     </table>
                                 </div>
@@ -235,132 +219,80 @@
 <!-- Script para manejar productos -->
 <script>
     $(document).ready(function() {
-        // Inicialización de DataTables
         const table = $('#productsTable').DataTable({
-            "language": {
-                "decimal": ",",
-                "thousands": ".",
-                "processing": "Procesando...",
-                "lengthMenu": "Mostrar _MENU_ registros",
-                "zeroRecords": "No se encontraron resultados",
-                "emptyTable": "Ningún dato disponible en esta tabla",
-                "info": "Mostrando registros del _START_ al _END_ de un total de _TOTAL_ registros",
-                "infoEmpty": "Mostrando registros del 0 al 0 de un total de 0 registros",
-                "infoFiltered": "(filtrado de un total de _MAX_ registros)",
-                "search": "Buscar:",
-                "loadingRecords": "Cargando...",
-                "paginate": {
-                    "first": "Primero",
-                    "last": "Último",
-                    "next": "Siguiente",
-                    "previous": "Anterior"
-                },
-                "aria": {
-                    "sortAscending": ": Activar para ordenar la columna de manera ascendente",
-                    "sortDescending": ": Activar para ordenar la columna de manera descendente"
-                }
-            },
-            "ajax": {
-                "url": "/api/products",
-                "dataSrc": ""
-            },
-            "columns": [
-                { "data": "id" },
-                { "data": "name" },
-                { "data": "category" },
-                {
-                    "data": "price",
-                    "render": function(data, type, row) {
-                        return '$' + parseFloat(data).toFixed(2);
-                    }
-                },
-                { "data": "stock" },
-                {
-                    "data": "stock",
-                    "render": function(data, type, row) {
-                        if (data <= 0) {
-                            return '<span class="badge badge-danger">Agotado</span>';
-                        } else if (data < 10) {
-                            return '<span class="badge badge-warning">Bajo stock</span>';
-                        } else {
-                            return '<span class="badge badge-success">Disponible</span>';
-                        }
-                    }
-                },
-                {
-                    "data": "id",
-                    "render": function(data, type, row) {
-                        return `
-                            <button class="btn btn-icon btn-round btn-info btn-sm me-1" onclick="editProduct(${data})">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn btn-icon btn-round btn-danger btn-sm" onclick="deleteProduct(${data})">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        `;
-                    },
-                    "orderable": false
-                }
-            ],
-            "responsive": true,
-            "autoWidth": false,
-            "searching": false
+            "searching": false,
+            "lengthChange": true,
+            "pageLength": 10
         });
 
-        // Cargar categorías al iniciar
+        let allProducts = [];
+
         loadCategories();
 
-        // Búsqueda global
+        loadProducts();
+
         $('#globalSearchInput').on('input', function() {
-            table.search($(this).val()).draw();
+            const searchTerm = $(this).val().toLowerCase();
+            searchProducts(searchTerm);
         });
 
-        // Guardar producto
         $('#saveProduct').click(function() {
             saveProduct();
         });
 
-        // Resetear modal al cerrar
         $('#addProductModal').on('hidden.bs.modal', function() {
             $('#productForm')[0].reset();
             $('#productId').val('');
             $('#modalTitle').text('Agregar Nuevo Producto');
-            $('#freeCategoryInput').hide();
-            $('#category').show();
-            $('#btnToggleCategory').html('<i class="fas fa-edit"></i>');
-        });
-
-        // Toggle entre selección de categoría y entrada libre
-        $('#btnToggleCategory').click(function() {
-            const categorySelect = $('#category');
-            const freeInput = $('#freeCategoryInput');
-
-            if (freeInput.is(':visible')) {
-                freeInput.hide();
-                categorySelect.show();
-                $(this).html('<i class="fas fa-edit"></i>');
-            } else {
-                categorySelect.hide();
-                freeInput.show();
-                $(this).html('<i class="fas fa-list"></i>');
-                $('#freeCategory').focus();
-            }
-        });
-
-        // Manejar entrada de nueva categoría
-        $('#freeCategory').on('input', function() {
-            const newCategory = $(this).val().trim();
-            if (newCategory) {
-                if ($('#category option[value="other"]').length === 0) {
-                    $('#category').append('<option value="other">Otra categoría</option>');
-                }
-                $('#category').val('other');
-            }
         });
     });
 
     function loadProducts() {
-        $('#productsTable').DataTable().ajax.reload(null, false);
+        $.ajax({
+            url: '/api/products',
+            type: 'GET',
+            success: function(products) {
+                allProducts = products;
+                renderProducts(products);
+            },
+            error: function(error) {
+                console.error('Error al cargar productos:', error);
+                swal('Error', 'No se pudieron cargar los productos', 'error');
+            }
+        });
+    }
+
+    function renderProducts(products) {
+        const tableBody = $('#productsTableBody');
+        tableBody.empty();
+
+        products.forEach(product => {
+            const status = product.stock <= 0 ?
+                '<span class="badge badge-danger">Agotado</span>' :
+                (product.stock < 10 ?
+                    '<span class="badge badge-warning">Bajo stock</span>' :
+                    '<span class="badge badge-success">Disponible</span>');
+
+            const row = `
+                <tr>
+                    <td>${product.id}</td>
+                    <td>${product.name}</td>
+                    <td>${product.category}</td>
+                    <td>$${product.price.toFixed(2)}</td>
+                    <td>${product.stock}</td>
+                    <td>${status}</td>
+                    <td>
+                        <button class="btn btn-icon btn-round btn-info btn-sm me-1" onclick="editProduct(${product.id})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-icon btn-round btn-danger btn-sm" onclick="deleteProduct(${product.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+            tableBody.append(row);
+        });
     }
 
     function loadCategories() {
@@ -388,6 +320,20 @@
                 console.error('Error al cargar categorías:', error);
             }
         });
+    }
+
+    function searchProducts(term) {
+        if (!term) {
+            renderProducts(allProducts);
+            return;
+        }
+
+        const filteredProducts = allProducts.filter(product =>
+            product.name.toLowerCase().includes(term) ||
+            (product.category && product.category.toLowerCase().includes(term))
+        );
+
+        renderProducts(filteredProducts);
     }
 
     function saveProduct() {
@@ -501,6 +447,32 @@
             }
         });
     }
+
+    $('#btnToggleCategory').click(function() {
+        const categorySelect = $('#category');
+        const freeInput = $('#freeCategoryInput');
+
+        if (freeInput.is(':visible')) {
+            freeInput.hide();
+            categorySelect.show();
+            $(this).html('<i class="fas fa-edit"></i>');
+        } else {
+            categorySelect.hide();
+            freeInput.show();
+            $(this).html('<i class="fas fa-list"></i>');
+            $('#freeCategory').focus();
+        }
+    });
+
+    $('#freeCategory').on('input', function() {
+        const newCategory = $(this).val().trim();
+        if (newCategory) {
+            if ($('#category option[value="other"]').length === 0) {
+                $('#category').append('<option value="other">Otra categoría</option>');
+            }
+            $('#category').val('other');
+        }
+    });
 </script>
 </body>
 </html>

@@ -19,7 +19,12 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     List<Product> findByCategoryIgnoreCase(String category);
 
+
+    /*
     @Query("SELECT p FROM Product p WHERE p.stock <= p.minimumStock AND p.minimumStock IS NOT NULL")
+    List<Product> findProductsWithLowStock();*/
+
+    @Query("SELECT p FROM Product p WHERE p.stock > 0 AND p.stock <= p.minimumStock AND p.minimumStock IS NOT NULL")
     List<Product> findProductsWithLowStock();
 
     @Query("SELECT p FROM Product p WHERE p.stock = 0 OR p.stock IS NULL")

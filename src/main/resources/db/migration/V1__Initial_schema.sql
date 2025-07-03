@@ -7,4 +7,4 @@ CREATE TABLE products (
                           stock INT NOT NULL,
                           minimum_stock INT,
                           PRIMARY KEY (id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);

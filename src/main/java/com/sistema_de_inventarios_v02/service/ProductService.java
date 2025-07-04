@@ -1,6 +1,6 @@
 package com.sistema_de_inventarios_v02.service;
 
-import com.sistema_de_inventarios_v02.dto.ProductDTO;
+import com.sistema_de_inventarios_v02.dto.*;
 import com.sistema_de_inventarios_v02.exception.ProductNotFoundException;
 import com.sistema_de_inventarios_v02.exception.DuplicateProductException;
 import com.sistema_de_inventarios_v02.model.Product;
@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -25,57 +26,66 @@ public class ProductService {
         this.productRepository = productRepository;
     }
 
-    public ProductDTO createProduct(ProductDTO productDTO) {
-        if (productRepository.existsByNameIgnoreCase(productDTO.getName())) {
-            throw new DuplicateProductException("Ya existe un producto con el nombre: " + productDTO.getName());
+    // CREAR PRODUCTO
+    public ProductResponseDTO createProduct(CreateProductDTO createProductDTO) {
+        if (productRepository.existsByNameIgnoreCase(createProductDTO.getName())) {
+            throw new DuplicateProductException("Ya existe un producto con el nombre: " + createProductDTO.getName());
         }
 
-        Product product = convertToEntity(productDTO);
+        Product product = convertCreateDTOToEntity(createProductDTO);
         Product savedProduct = productRepository.save(product);
-        return convertToDTO(savedProduct);
+        return convertToResponseDTO(savedProduct);
     }
 
+    // OBTENER TODOS LOS PRODUCTOS (SUMMARY)
     @Transactional(readOnly = true)
-    public List<ProductDTO> getAllProducts() {
+    public List<ProductSummaryDTO> getAllProductsSummary() {
         List<Product> products = productRepository.findAll();
         return products.stream()
-                .map(this::convertToDTO)
+                .map(this::convertToSummaryDTO)
                 .collect(Collectors.toList());
     }
 
+    // OBTENER TODOS LOS PRODUCTOS PAGINADOS (SUMMARY)
     @Transactional(readOnly = true)
-    public Page<ProductDTO> getProductsWithFilters(String category, String name, Pageable pageable) {
-        Page<Product> products = productRepository.findByCategoryAndName(category, name, pageable);
-        return products.map(this::convertToDTO);
+    public Page<ProductSummaryDTO> getAllProductsPaginated(Pageable pageable) {
+        Page<Product> productsPage = productRepository.findAll(pageable);
+        return productsPage.map(this::convertToSummaryDTO);
     }
 
+    // OBTENER PRODUCTOS CON FILTROS
     @Transactional(readOnly = true)
-    public ProductDTO getProductById(Long id) {
+    public Page<ProductSummaryDTO> getProductsWithFilters(String category, String name, Pageable pageable) {
+        Page<Product> products = productRepository.findByCategoryAndName(category, name, pageable);
+        return products.map(this::convertToSummaryDTO);
+    }
+
+    // OBTENER PRODUCTO POR ID (COMPLETO)
+    @Transactional(readOnly = true)
+    public ProductResponseDTO getProductById(Long id) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new ProductNotFoundException("Producto no encontrado con ID: " + id));
-        return convertToDTO(product);
+        return convertToResponseDTO(product);
     }
 
-    public ProductDTO updateProduct(Long id, ProductDTO productDTO) {
+    // ACTUALIZAR PRODUCTO
+    public ProductResponseDTO updateProduct(Long id, UpdateProductDTO updateProductDTO) {
         Product existingProduct = productRepository.findById(id)
                 .orElseThrow(() -> new ProductNotFoundException("Producto no encontrado con ID: " + id));
 
-        if (!existingProduct.getName().equalsIgnoreCase(productDTO.getName()) &&
-                productRepository.existsByNameIgnoreCase(productDTO.getName())) {
-            throw new DuplicateProductException("Ya existe un producto con el nombre: " + productDTO.getName());
+        // Verificar nombre duplicado solo si se está cambiando
+        if (updateProductDTO.getName() != null &&
+                !existingProduct.getName().equalsIgnoreCase(updateProductDTO.getName()) &&
+                productRepository.existsByNameIgnoreCase(updateProductDTO.getName())) {
+            throw new DuplicateProductException("Ya existe un producto con el nombre: " + updateProductDTO.getName());
         }
 
-        existingProduct.setName(productDTO.getName());
-        existingProduct.setDescription(productDTO.getDescription());
-        existingProduct.setCategory(productDTO.getCategory());
-        existingProduct.setPrice(productDTO.getPrice());
-        existingProduct.setStock(productDTO.getStock());
-        existingProduct.setMinimumStock(productDTO.getMinimumStock());
-
+        updateEntityFromUpdateDTO(existingProduct, updateProductDTO);
         Product updatedProduct = productRepository.save(existingProduct);
-        return convertToDTO(updatedProduct);
+        return convertToResponseDTO(updatedProduct);
     }
 
+    // ELIMINAR PRODUCTO
     public void deleteProduct(Long id) {
         if (!productRepository.existsById(id)) {
             throw new ProductNotFoundException("Producto no encontrado con ID: " + id);
@@ -83,85 +93,156 @@ public class ProductService {
         productRepository.deleteById(id);
     }
 
+    // BUSCAR PRODUCTOS POR NOMBRE
     @Transactional(readOnly = true)
-    public List<ProductDTO> searchProductsByName(String name) {
+    public List<ProductSummaryDTO> searchProductsByName(String name) {
         List<Product> products = productRepository.findByNameContainingIgnoreCase(name);
         return products.stream()
-                .map(this::convertToDTO)
+                .map(this::convertToSummaryDTO)
                 .collect(Collectors.toList());
     }
 
+    // OBTENER PRODUCTOS POR CATEGORÍA
     @Transactional(readOnly = true)
-    public List<ProductDTO> getProductsByCategory(String category) {
+    public List<ProductSummaryDTO> getProductsByCategory(String category) {
         List<Product> products = productRepository.findByCategoryIgnoreCase(category);
         return products.stream()
-                .map(this::convertToDTO)
+                .map(this::convertToSummaryDTO)
                 .collect(Collectors.toList());
     }
 
+    // OBTENER PRODUCTOS CON STOCK BAJO
     @Transactional(readOnly = true)
-    public List<ProductDTO> getProductsWithLowStock() {
+    public List<ProductResponseDTO> getProductsWithLowStock() {
         List<Product> products = productRepository.findProductsWithLowStock();
         return products.stream()
-                .map(this::convertToDTO)
+                .map(this::convertToResponseDTO)
                 .collect(Collectors.toList());
     }
 
+    // OBTENER PRODUCTOS SIN STOCK
     @Transactional(readOnly = true)
-    public List<ProductDTO> getProductsOutOfStock() {
+    public List<ProductResponseDTO> getProductsOutOfStock() {
         List<Product> products = productRepository.findProductsOutOfStock();
         return products.stream()
-                .map(this::convertToDTO)
+                .map(this::convertToResponseDTO)
                 .collect(Collectors.toList());
     }
 
-    public ProductDTO updateProductStock(Long id, Integer newStock) {
+    // ACTUALIZAR STOCK DE PRODUCTO
+    public ProductResponseDTO updateProductStock(Long id, StockUpdateDTO stockUpdateDTO) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new ProductNotFoundException("Producto no encontrado con ID: " + id));
 
-        product.setStock(newStock);
+        product.setStock(stockUpdateDTO.getStock());
         Product updatedProduct = productRepository.save(product);
-        return convertToDTO(updatedProduct);
+        return convertToResponseDTO(updatedProduct);
     }
 
+    // OBTENER TODAS LAS CATEGORÍAS
     @Transactional(readOnly = true)
     public List<String> getAllCategories() {
         return productRepository.findAllCategories();
     }
 
+    // OBTENER PRODUCTOS POR RANGO DE PRECIO
     @Transactional(readOnly = true)
-    public List<ProductDTO> getProductsByPriceRange(Double minPrice, Double maxPrice) {
+    public List<ProductSummaryDTO> getProductsByPriceRange(Double minPrice, Double maxPrice) {
         List<Product> products = productRepository.findByPriceBetween(minPrice, maxPrice);
         return products.stream()
-                .map(this::convertToDTO)
+                .map(this::convertToSummaryDTO)
                 .collect(Collectors.toList());
     }
 
-    private ProductDTO convertToDTO(Product product) {
-        return new ProductDTO(
+    // OBTENER ESTADÍSTICAS DE PRODUCTOS
+    @Transactional(readOnly = true)
+    public Map<String, Object> getProductStats() {
+        List<Product> allProducts = productRepository.findAll();
+        List<Product> lowStockProducts = productRepository.findProductsWithLowStock();
+        List<Product> outOfStockProducts = productRepository.findProductsOutOfStock();
+        List<String> categories = productRepository.findAllCategories();
+
+        return Map.of(
+                "totalProducts", allProducts.size(),
+                "lowStockProducts", lowStockProducts.size(),
+                "outOfStockProducts", outOfStockProducts.size(),
+                "totalCategories", categories.size(),
+                "inStockProducts", allProducts.size() - outOfStockProducts.size()
+        );
+    }
+
+    // ===== MÉTODOS DE CONVERSIÓN =====
+
+    // Convertir CreateProductDTO a Entity
+    private Product convertCreateDTOToEntity(CreateProductDTO createDTO) {
+        return new Product(
+                createDTO.getName(),
+                createDTO.getDescription(),
+                createDTO.getCategory(),
+                createDTO.getPrice(),
+                createDTO.getStock(),
+                createDTO.getMinimumStock()
+        );
+    }
+
+    // Actualizar Entity desde UpdateProductDTO
+    private void updateEntityFromUpdateDTO(Product product, UpdateProductDTO updateDTO) {
+        if (updateDTO.getName() != null) {
+            product.setName(updateDTO.getName());
+        }
+        if (updateDTO.getDescription() != null) {
+            product.setDescription(updateDTO.getDescription());
+        }
+        if (updateDTO.getCategory() != null) {
+            product.setCategory(updateDTO.getCategory());
+        }
+        if (updateDTO.getPrice() != null) {
+            product.setPrice(updateDTO.getPrice());
+        }
+        if (updateDTO.getStock() != null) {
+            product.setStock(updateDTO.getStock());
+        }
+        if (updateDTO.getMinimumStock() != null) {
+            product.setMinimumStock(updateDTO.getMinimumStock());
+        }
+    }
+
+    // Convertir Entity a ProductResponseDTO
+    private ProductResponseDTO convertToResponseDTO(Product product) {
+        return new ProductResponseDTO(
                 product.getId(),
                 product.getName(),
                 product.getDescription(),
                 product.getCategory(),
                 product.getPrice(),
                 product.getStock(),
-                product.getMinimumStock()
+                product.getMinimumStock(),
+                product.isLowStock(),
+                product.isOutOfStock(),
+                calculateStockStatus(product)
         );
     }
 
-    private Product convertToEntity(ProductDTO productDTO) {
-        return new Product(
-                productDTO.getName(),
-                productDTO.getDescription(),
-                productDTO.getCategory(),
-                productDTO.getPrice(),
-                productDTO.getStock(),
-                productDTO.getMinimumStock()
+    // Convertir Entity a ProductSummaryDTO
+    private ProductSummaryDTO convertToSummaryDTO(Product product) {
+        return new ProductSummaryDTO(
+                product.getId(),
+                product.getName(),
+                product.getCategory(),
+                product.getPrice(),
+                product.getStock(),
+                calculateStockStatus(product)
         );
     }
 
-    public Page<ProductDTO> getAllProductsPaginated(Pageable pageable) {
-        Page<Product> productsPage = productRepository.findAll(pageable);
-        return productsPage.map(this::convertToDTO);
+    // Calcular estado del stock
+    private String calculateStockStatus(Product product) {
+        if (product.isOutOfStock()) {
+            return "OUT_OF_STOCK";
+        }
+        if (product.isLowStock()) {
+            return "LOW_STOCK";
+        }
+        return "IN_STOCK";
     }
 }

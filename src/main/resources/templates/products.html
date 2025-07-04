@@ -4,38 +4,79 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <title>Kaiadmin - Gestión de Productos</title>
     <meta content="width=device-width, initial-scale=1.0, shrink-to-fit=no" name="viewport" />
-    <link rel="icon" th:href="@{/assets/img/kaiadmin/favicon.ico}" type="image/x-icon" />
+    <link rel="icon" th:href="@{/assets/img/kaiadmin/logocv.ico}" type="image/x-icon" />
 
-    <!-- Fonts and icons -->
-    <script th:src="@{/assets/js/plugin/webfont/webfont.min.js}"></script>
-    <script>
-        WebFont.load({
-            google: { families: ["Public Sans:300,400,500,600,700"] },
-            custom: {
-                families: [
-                    "Font Awesome 5 Solid",
-                    "Font Awesome 5 Regular",
-                    "Font Awesome 5 Brands",
-                    "simple-line-icons",
-                ],
-                urls: [/*[[@{/assets/css/fonts.min.css}]]*/],
-            },
-            active: function () {
-                sessionStorage.fonts = true;
-            },
-        });
-    </script>
+    <!-- En el head -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <!-- CSS Files -->
     <link rel="stylesheet" th:href="@{/assets/css/bootstrap.min.css}" />
     <link rel="stylesheet" th:href="@{/assets/css/plugins.min.css}" />
     <link rel="stylesheet" th:href="@{/assets/css/kaiadmin.min.css}" />
 
-<!--    &lt;!&ndash; Datatables CSS &ndash;&gt;-->
-<!--    <link rel="stylesheet" th:href="@{/assets/css/plugin/datatables/datatables.min.css}" />-->
+    <style>
+        .pagination-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            padding: 15px 0;
+        }
 
-<!--    &lt;!&ndash; Sweet Alert CSS &ndash;&gt;-->
-<!--    <link rel="stylesheet" th:href="@{/assets/css/plugin/sweetalert/sweetalert.css}" />-->
+        .pagination-info {
+            color: #6c757d;
+            font-size: 14px;
+        }
+
+        .pagination-nav {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .pagination-nav button {
+            border: 1px solid #dee2e6;
+            background: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .pagination-nav button:hover:not(:disabled) {
+            background: #f8f9fa;
+            border-color: #adb5bd;
+        }
+
+        .pagination-nav button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .pagination-nav .page-input {
+            width: 60px;
+            text-align: center;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 8px;
+        }
+
+        .page-size-selector {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #6c757d;
+            font-size: 14px;
+        }
+
+        .page-size-selector select {
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 5px 10px;
+            background: white;
+        }
+    </style>
 </head>
 <body>
 <div class="wrapper">
@@ -68,11 +109,10 @@
                                     <div class="card-title">Lista de Productos</div>
                                     <div class="ms-md-auto py-2 py-md-0 me-3">
                                         <div class="input-group">
-                                            <input type="text" id="globalSearchInput" class="form-control"
-                                                   placeholder="Buscar por nombre o categoría...">
+                                            <input type="text" id="globalSearchInput" class="form-control" placeholder="Buscar por nombre">
                                             <div class="input-group-append">
-                                                <span class="input-group-text">
-                                                    <i class="fa fa-search"></i>
+                                                <span class="input-group-text d-flex align-items-center justify-content-center" style="height: 100%;">
+                                                    <i class="fas fa-search"></i>
                                                 </span>
                                             </div>
                                         </div>
@@ -97,6 +137,44 @@
                                         <!-- Los productos se cargarán aquí dinámicamente -->
                                         </tbody>
                                     </table>
+                                </div>
+
+                                <!-- Controles de Paginación -->
+                                <div class="pagination-controls">
+                                    <div class="pagination-info">
+                                        <span id="paginationInfo">Mostrando 0 - 0 de 0 productos</span>
+                                    </div>
+
+                                    <div class="pagination-nav">
+                                        <button id="firstPageBtn" title="Primera página">
+                                            <i class="fas fa-angle-double-left"></i>
+                                        </button>
+                                        <button id="prevPageBtn" title="Página anterior">
+                                            <i class="fas fa-angle-left"></i>
+                                        </button>
+
+                                        <span>Página</span>
+                                        <input type="number" id="currentPageInput" class="page-input" min="1" value="1">
+                                        <span>de <span id="totalPages">1</span></span>
+
+                                        <button id="nextPageBtn" title="Página siguiente">
+                                            <i class="fas fa-angle-right"></i>
+                                        </button>
+                                        <button id="lastPageBtn" title="Última página">
+                                            <i class="fas fa-angle-double-right"></i>
+                                        </button>
+                                    </div>
+
+                                    <div class="page-size-selector">
+                                        <span>Mostrar</span>
+                                        <select id="pageSizeSelect">
+                                            <option value="5">5</option>
+                                            <option value="10" selected>10</option>
+                                            <option value="20">20</option>
+                                            <option value="50">50</option>
+                                        </select>
+                                        <span>por página</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -216,24 +294,54 @@
 <!-- Kaiadmin JS -->
 <script th:src="@{/assets/js/kaiadmin.min.js}"></script>
 
-<!-- Script para manejar productos -->
+<!-- Script para manejar productos con paginación -->
 <script>
     $(document).ready(function() {
-        const table = $('#productsTable').DataTable({
-            "searching": false,
-            "lengthChange": true,
-            "pageLength": 10
-        });
+        // Deshabilitamos DataTables ya que manejamos la paginación manualmente
+        const table = $('#productsTable');
 
-        let allProducts = [];
+        // Variables de paginación
+        let currentPage = 0;
+        let pageSize = 10;
+        let totalElements = 0;
+        let totalPages = 0;
+        let isSearching = false;
+        let searchTerm = '';
 
         loadCategories();
-
         loadProducts();
 
+        // Event listeners para paginación
+        $('#firstPageBtn').click(() => goToPage(0));
+        $('#prevPageBtn').click(() => goToPage(currentPage - 1));
+        $('#nextPageBtn').click(() => goToPage(currentPage + 1));
+        $('#lastPageBtn').click(() => goToPage(totalPages - 1));
+
+        $('#currentPageInput').on('change', function() {
+            const pageNumber = parseInt($(this).val()) - 1;
+            if (pageNumber >= 0 && pageNumber < totalPages) {
+                goToPage(pageNumber);
+            } else {
+                $(this).val(currentPage + 1);
+            }
+        });
+
+        $('#pageSizeSelect').on('change', function() {
+            pageSize = parseInt($(this).val());
+            currentPage = 0;
+            loadProducts();
+        });
+
         $('#globalSearchInput').on('input', function() {
-            const searchTerm = $(this).val().toLowerCase();
-            searchProducts(searchTerm);
+            searchTerm = $(this).val().trim();
+            isSearching = searchTerm.length > 0;
+            currentPage = 0;
+
+            if (isSearching) {
+                searchProducts(searchTerm);
+            } else {
+                loadProducts();
+            }
         });
 
         $('#saveProduct').click(function() {
@@ -245,55 +353,141 @@
             $('#productId').val('');
             $('#modalTitle').text('Agregar Nuevo Producto');
         });
-    });
 
-    function loadProducts() {
-        $.ajax({
-            url: '/api/products',
-            type: 'GET',
-            success: function(products) {
-                allProducts = products;
-                renderProducts(products);
-            },
-            error: function(error) {
-                console.error('Error al cargar productos:', error);
-                swal('Error', 'No se pudieron cargar los productos', 'error');
+        function goToPage(pageNumber) {
+            if (pageNumber < 0 || pageNumber >= totalPages || pageNumber === currentPage) {
+                return;
             }
-        });
-    }
 
-    function renderProducts(products) {
-        const tableBody = $('#productsTableBody');
-        tableBody.empty();
+            currentPage = pageNumber;
 
-        products.forEach(product => {
-            const status = product.stock <= 0 ?
-                '<span class="badge badge-danger">Agotado</span>' :
-                (product.stock < 10 ?
-                    '<span class="badge badge-warning">Bajo stock</span>' :
-                    '<span class="badge badge-success">Disponible</span>');
+            if (isSearching) {
+                searchProducts(searchTerm);
+            } else {
+                loadProducts();
+            }
+        }
 
-            const row = `
-                <tr>
-                    <td>${product.id}</td>
-                    <td>${product.name}</td>
-                    <td>${product.category}</td>
-                    <td>$${product.price.toFixed(2)}</td>
-                    <td>${product.stock}</td>
-                    <td>${status}</td>
-                    <td>
-                        <button class="btn btn-icon btn-round btn-info btn-sm me-1" onclick="editProduct(${product.id})">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="btn btn-icon btn-round btn-danger btn-sm" onclick="deleteProduct(${product.id})">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </td>
-                </tr>
-            `;
-            tableBody.append(row);
-        });
-    }
+        function loadProducts() {
+            const url = `/api/products/paginated?page=${currentPage}&size=${pageSize}&sortBy=name&sortDir=asc`;
+
+            $.ajax({
+                url: url,
+                type: 'GET',
+                success: function(response) {
+                    renderProducts(response.content);
+                    updatePaginationInfo(response);
+                },
+                error: function(error) {
+                    console.error('Error al cargar productos:', error);
+                    swal('Error', 'No se pudieron cargar los productos', 'error');
+                }
+            });
+        }
+
+        function searchProducts(term) {
+            if (!term) {
+                isSearching = false;
+                loadProducts();
+                return;
+            }
+
+            $.ajax({
+                url: `/api/products/search?name=${encodeURIComponent(term)}`,
+                type: 'GET',
+                success: function(products) {
+                    // Para la búsqueda, simulamos paginación en el frontend
+                    const startIndex = currentPage * pageSize;
+                    const endIndex = startIndex + pageSize;
+                    const paginatedProducts = products.slice(startIndex, endIndex);
+
+                    renderProducts(paginatedProducts);
+
+                    // Crear objeto de respuesta similar al del backend
+                    const mockResponse = {
+                        content: paginatedProducts,
+                        totalElements: products.length,
+                        totalPages: Math.ceil(products.length / pageSize),
+                        number: currentPage,
+                        size: pageSize,
+                        numberOfElements: paginatedProducts.length
+                    };
+
+                    updatePaginationInfo(mockResponse);
+                },
+                error: function(error) {
+                    console.error('Error al buscar productos:', error);
+                    swal('Error', 'Error en la búsqueda de productos', 'error');
+                }
+            });
+        }
+
+        function renderProducts(products) {
+            const tableBody = $('#productsTableBody');
+            tableBody.empty();
+
+            if (products.length === 0) {
+                tableBody.append(`
+                    <tr>
+                        <td colspan="7" class="text-center text-muted">
+                            ${isSearching ? 'No se encontraron productos con ese criterio de búsqueda' : 'No hay productos para mostrar'}
+                        </td>
+                    </tr>
+                `);
+                return;
+            }
+
+            products.forEach(product => {
+                const status = product.stock <= 0 ?
+                    '<span class="badge badge-danger">Agotado</span>' :
+                    (product.stock < 10 ?
+                        '<span class="badge badge-warning">Bajo stock</span>' :
+                        '<span class="badge badge-success">Disponible</span>');
+
+                const row = `
+                    <tr>
+                        <td>${product.id}</td>
+                        <td>${product.name}</td>
+                        <td>${product.category}</td>
+                        <td>$${product.price.toFixed(2)}</td>
+                        <td>${product.stock}</td>
+                        <td>${status}</td>
+                        <td>
+                            <button class="btn btn-icon btn-round btn-info btn-sm me-1" onclick="editProduct(${product.id})">
+                                <i class="fas fa-edit fa-xs"></i>
+                            </button>
+                            <button class="btn btn-icon btn-round btn-danger btn-sm" onclick="deleteProduct(${product.id})">
+                                <i class="fas fa-trash fa-xs"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+                tableBody.append(row);
+            });
+        }
+
+        function updatePaginationInfo(response) {
+            totalElements = response.totalElements;
+            totalPages = response.totalPages;
+            currentPage = response.number;
+
+            const startItem = totalElements > 0 ? (currentPage * pageSize) + 1 : 0;
+            const endItem = Math.min((currentPage + 1) * pageSize, totalElements);
+
+            $('#paginationInfo').text(`Mostrando ${startItem} - ${endItem} de ${totalElements} productos`);
+            $('#currentPageInput').val(currentPage + 1);
+            $('#totalPages').text(totalPages);
+
+            // Actualizar estado de botones
+            $('#firstPageBtn').prop('disabled', currentPage === 0);
+            $('#prevPageBtn').prop('disabled', currentPage === 0);
+            $('#nextPageBtn').prop('disabled', currentPage >= totalPages - 1);
+            $('#lastPageBtn').prop('disabled', currentPage >= totalPages - 1);
+
+            // Actualizar input de página
+            $('#currentPageInput').attr('max', totalPages);
+        }
+    });
 
     function loadCategories() {
         $.ajax({
@@ -320,20 +514,6 @@
                 console.error('Error al cargar categorías:', error);
             }
         });
-    }
-
-    function searchProducts(term) {
-        if (!term) {
-            renderProducts(allProducts);
-            return;
-        }
-
-        const filteredProducts = allProducts.filter(product =>
-            product.name.toLowerCase().includes(term) ||
-            (product.category && product.category.toLowerCase().includes(term))
-        );
-
-        renderProducts(filteredProducts);
     }
 
     function saveProduct() {
@@ -366,11 +546,17 @@
             success: function(response) {
                 $('#addProductModal').modal('hide');
                 swal('Éxito', productId ? 'Producto actualizado correctamente' : 'Producto creado correctamente', 'success');
-                loadProducts();
+                // Recargar la página actual después de guardar
+                if ($('#globalSearchInput').val().trim()) {
+                    searchProducts($('#globalSearchInput').val().trim());
+                } else {
+                    loadProducts();
+                }
             },
             error: function(error) {
                 console.error('Error al guardar producto:', error);
-                swal('Error', 'No se pudo guardar el producto', 'error');
+                const errorMessage = error.responseJSON?.message || 'No se pudo guardar el producto';
+                swal('Error', errorMessage, 'error');
             }
         });
     }
@@ -390,9 +576,10 @@
                 if (categoryOption.length > 0) {
                     $('#category').val(product.category);
                     $('#freeCategoryInput').hide();
+                    $('#category').show();
                     $('#btnToggleCategory').html('<i class="fas fa-edit"></i>');
                 } else {
-                    $('#category').val('other');
+                    $('#category').val('');
                     $('#freeCategory').val(product.category);
                     $('#freeCategoryInput').show();
                     $('#category').hide();
@@ -437,7 +624,12 @@
                     type: 'DELETE',
                     success: function(response) {
                         swal('Eliminado', 'El producto ha sido eliminado', 'success');
-                        loadProducts();
+                        // Recargar la página actual después de eliminar
+                        if ($('#globalSearchInput').val().trim()) {
+                            searchProducts($('#globalSearchInput').val().trim());
+                        } else {
+                            loadProducts();
+                        }
                     },
                     error: function(error) {
                         console.error('Error al eliminar producto:', error);

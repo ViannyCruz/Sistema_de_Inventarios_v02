@@ -10,29 +10,13 @@
   />
   <link
           rel="icon"
-          th:href="@{/assets/img/kaiadmin/favicon.ico}"
+          th:href="@{/assets/img/kaiadmin/logocv.ico}"
           type="image/x-icon"
   />
 
-  <!-- Fonts and icons -->
-  <script th:src="@{/assets/js/plugin/webfont/webfont.min.js}"></script>
-  <script>
-    WebFont.load({
-      google: { families: ["Public Sans:300,400,500,600,700"] },
-      custom: {
-        families: [
-          "Font Awesome 5 Solid",
-          "Font Awesome 5 Regular",
-          "Font Awesome 5 Brands",
-          "simple-line-icons",
-        ],
-        urls: [/*[[@{/assets/css/fonts.min.css}]]*/],
-      },
-      active: function () {
-        sessionStorage.fonts = true;
-      },
-    });
-  </script>
+  <!-- En el head -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
   <!-- CSS Files -->
   <link rel="stylesheet" th:href="@{/assets/css/bootstrap.min.css}" />
@@ -47,13 +31,8 @@
         <div class="sidebar-logo">
           <!-- Logo Header -->
           <div class="logo-header" data-background-color="dark">
-            <a href="index.html" class="logo">
-              <img
-                src="assets/img/kaiadmin/logo_light.svg"
-                alt="navbar brand"
-                class="navbar-brand"
-                height="20"
-              />
+            <a th:href="@{/}" class="logo">
+              <img th:src="@{/assets/img/logocv02.png}" alt="navbar brand" class="navbar-brand" width="150" height="40" />
             </a>
             <div class="nav-toggle">
               <button class="btn btn-toggle toggle-sidebar">
@@ -338,12 +317,7 @@
             <!-- Logo Header -->
             <div class="logo-header" data-background-color="dark">
               <a href="index.html" class="logo">
-                <img
-                  src="assets/img/kaiadmin/logo_light.svg"
-                  alt="navbar brand"
-                  class="navbar-brand"
-                  height="20"
-                />
+                <img th:src="@{/assets/img/logocv02.png}" alt="navbar brand" class="navbar-brand" height="20" />
               </a>
               <div class="nav-toggle">
                 <button class="btn btn-toggle toggle-sidebar">
@@ -722,12 +696,17 @@
             >
               <div>
                 <h3 class="fw-bold mb-3">Dashboard</h3>
+                <!--
                 <h6 class="op-7 mb-2">Free Bootstrap 5 Admin Dashboard</h6>
+                -->
               </div>
+
+              <!--
               <div class="ms-md-auto py-2 py-md-0">
                 <a href="#" class="btn btn-label-info btn-round me-2">Manage</a>
                 <a href="#" class="btn btn-primary btn-round">Add Customer</a>
               </div>
+              -->
             </div>
             <div class="row">
               <div class="col-sm-6 col-md-3">
@@ -738,13 +717,13 @@
                         <div
                           class="icon-big text-center icon-primary bubble-shadow-small"
                         >
-                          <i class="fas fa-users"></i>
+                          <i class="fas fa-warehouse"></i>
                         </div>
                       </div>
                       <div class="col col-stats ms-3 ms-sm-0">
                         <div class="numbers">
-                          <p class="card-category">Visitors</p>
-                          <h4 class="card-title">1,294</h4>
+                          <p class="card-category">Productos en Stock</p>
+                          <h4 class="card-title" id="card_ProductosEnStock">0</h4>
                         </div>
                       </div>
                     </div>
@@ -759,13 +738,13 @@
                         <div
                           class="icon-big text-center icon-info bubble-shadow-small"
                         >
-                          <i class="fas fa-user-check"></i>
+                          <i class="fas fa-exclamation-triangle"></i>
                         </div>
                       </div>
                       <div class="col col-stats ms-3 ms-sm-0">
                         <div class="numbers">
-                          <p class="card-category">Subscribers</p>
-                          <h4 class="card-title">1303</h4>
+                          <p class="card-category">Productos Bajo Stock</p>
+                          <h4 id="card_ProductosBajoStock" class="card-title">0</h4>
                         </div>
                       </div>
                     </div>
@@ -780,13 +759,13 @@
                         <div
                           class="icon-big text-center icon-success bubble-shadow-small"
                         >
-                          <i class="fas fa-luggage-cart"></i>
+                          <i class="fas fa-times-circle"></i>
                         </div>
                       </div>
                       <div class="col col-stats ms-3 ms-sm-0">
                         <div class="numbers">
-                          <p class="card-category">Sales</p>
-                          <h4 class="card-title">$ 1,345</h4>
+                          <p class="card-category">Productos sin Stock</p>
+                          <h4 id="card_ProductosSinStock" class="card-title">0</h4>
                         </div>
                       </div>
                     </div>
@@ -801,13 +780,13 @@
                         <div
                           class="icon-big text-center icon-secondary bubble-shadow-small"
                         >
-                          <i class="far fa-check-circle"></i>
+                          <i class="fas fa-clipboard-list"></i>
                         </div>
                       </div>
                       <div class="col col-stats ms-3 ms-sm-0">
                         <div class="numbers">
-                          <p class="card-category">Order</p>
-                          <h4 class="card-title">576</h4>
+                          <p class="card-category">Productos Totales</p>
+                          <h4 id="card_totalProducts" class="card-title">0</h4>
                         </div>
                       </div>
                     </div>
@@ -1625,5 +1604,33 @@
         fillColor: "rgba(255, 165, 52, .14)",
       });
     </script>
+
+  <script>
+    $(document).ready(function () {
+
+
+      $.ajax({
+        url: '/api/products/stats',
+        type: 'GET',
+        success: function(stats) {
+          console.log(stats);
+
+          $('#card_ProductosEnStock').text(stats.inStockProducts);
+          $('#card_ProductosBajoStock').text(stats.lowStockProducts);
+          $('#card_ProductosSinStock').text(stats.outOfStockProducts);
+          $('#card_totalProducts').text(stats.totalProducts);
+
+        },
+        error: function(error) {
+          console.error('Error al cargar stats:', error);
+
+        }
+      });
+
+
+
+
+    });
+  </script>
   </body>
 </html>

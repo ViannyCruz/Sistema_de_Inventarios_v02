@@ -1,6 +1,6 @@
 package com.sistema_de_inventarios_v02;
 
-import com.sistema_de_inventarios_v02.dto.ProductDTO;
+import com.sistema_de_inventarios_v02.dto.*;
 import com.sistema_de_inventarios_v02.exception.DuplicateProductException;
 import com.sistema_de_inventarios_v02.exception.ProductNotFoundException;
 import com.sistema_de_inventarios_v02.model.Product;
@@ -8,9 +8,10 @@ import com.sistema_de_inventarios_v02.repository.ProductRepository;
 import com.sistema_de_inventarios_v02.service.ProductService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -19,12 +20,15 @@ import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Map;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+@DisplayName("ProductService Tests")
 public class ProductServiceTest {
+
     @Mock
     private ProductRepository productRepository;
 
@@ -32,8 +36,9 @@ public class ProductServiceTest {
     private ProductService productService;
 
     private Product testProduct;
-    private ProductDTO testProductDTO;
-    private ProductDTO testProductInputDTO;
+    private CreateProductDTO createProductDTO;
+    private UpdateProductDTO updateProductDTO;
+    private StockUpdateDTO stockUpdateDTO;
 
     @BeforeEach
     void setUp() {
@@ -50,9 +55,8 @@ public class ProductServiceTest {
         );
         testProduct.setId(1L);
 
-        // DTO que simularía un producto existente
-        testProductDTO = new ProductDTO(
-                1L,
+        // DTO para crear producto (sin ID)
+        createProductDTO = new CreateProductDTO(
                 "Laptop",
                 "Laptop de alta gama",
                 "Electrónicos",
@@ -61,628 +65,451 @@ public class ProductServiceTest {
                 5
         );
 
-        // DTO para simular entrada al crear un producto (sin ID)
-        testProductInputDTO = new ProductDTO(
-                null,
-                "Laptop",
-                "Laptop de alta gama",
-                "Electrónicos",
-                new BigDecimal("1200.00"),
-                10,
-                5
-        );
+        // DTO para actualizar producto
+        updateProductDTO = new UpdateProductDTO();
+        updateProductDTO.setName("Laptop Actualizada");
+        updateProductDTO.setDescription("Laptop de alta gama - Actualizada");
+        updateProductDTO.setPrice(new BigDecimal("1300.00"));
+        updateProductDTO.setStock(15);
+
+        // DTO para actualizar stock
+        stockUpdateDTO = new StockUpdateDTO(20, "Reposición de inventario");
     }
 
-    @Test
-    void createProduct_ShouldReturnSavedProduct_WhenProductIsNew() {
-        // Configuración del mock
-        when(productRepository.existsByNameIgnoreCase(testProductInputDTO.getName())).thenReturn(false);
-        when(productRepository.save(any(Product.class))).thenReturn(testProduct);
+    @Nested
+    @DisplayName("Crear Producto")
+    class CreateProductTests {
 
-        // Ejecución
-        ProductDTO result = productService.createProduct(testProductInputDTO);
+        @Test
+        @DisplayName("Debe crear producto exitosamente cuando el nombre no existe")
+        void createProduct_ShouldReturnSavedProduct_WhenProductIsNew() {
+            // Arrange
+            when(productRepository.existsByNameIgnoreCase(createProductDTO.getName())).thenReturn(false);
+            when(productRepository.save(any(Product.class))).thenReturn(testProduct);
 
-        // Verificaciones
-        assertNotNull(result);
-        assertEquals(testProductDTO.getId(), result.getId());
-        assertEquals(testProductDTO.getName(), result.getName());
-        assertEquals(testProductDTO.getCategory(), result.getCategory());
+            // Act
+            ProductResponseDTO result = productService.createProduct(createProductDTO);
 
-        verify(productRepository, times(1)).existsByNameIgnoreCase(testProductInputDTO.getName());
-        verify(productRepository, times(1)).save(any(Product.class));
+            // Assert
+            assertNotNull(result);
+            assertEquals(testProduct.getId(), result.getId());
+            assertEquals(testProduct.getName(), result.getName());
+            assertEquals(testProduct.getCategory(), result.getCategory());
+            assertEquals(testProduct.getPrice(), result.getPrice());
+            assertEquals(testProduct.getStock(), result.getStock());
+            assertEquals(testProduct.getMinimumStock(), result.getMinimumStock());
+            assertNotNull(result.getStockStatus());
+
+            verify(productRepository, times(1)).existsByNameIgnoreCase(createProductDTO.getName());
+            verify(productRepository, times(1)).save(any(Product.class));
+        }
+
+        @Test
+        @DisplayName("Debe lanzar excepción cuando el nombre del producto ya existe")
+        void createProduct_ShouldThrowException_WhenProductNameExists() {
+            // Arrange
+            when(productRepository.existsByNameIgnoreCase(createProductDTO.getName())).thenReturn(true);
+
+            // Act & Assert
+            assertThrows(DuplicateProductException.class, () -> {
+                productService.createProduct(createProductDTO);
+            });
+
+            verify(productRepository, times(1)).existsByNameIgnoreCase(createProductDTO.getName());
+            verify(productRepository, never()).save(any(Product.class));
+        }
     }
 
-    @Test
-    void createProduct_ShouldThrowException_WhenProductNameExists() {
-        // Configuración del mock
-        when(productRepository.existsByNameIgnoreCase(testProductInputDTO.getName())).thenReturn(true);
+    @Nested
+    @DisplayName("Obtener Productos")
+    class GetProductsTests {
 
-        // Ejecución y verificación de excepción
-        assertThrows(DuplicateProductException.class, () -> {
-            productService.createProduct(testProductInputDTO);
-        });
+        @Test
+        @DisplayName("Debe retornar lista de ProductSummaryDTO cuando existen productos")
+        void getAllProductsSummary_ShouldReturnListOfProductSummary() {
+            // Arrange
+            Product product1 = new Product("Laptop", "Laptop de alta gama", "Electrónicos",
+                    new BigDecimal("1200.00"), 10, 5);
+            product1.setId(1L);
 
-        verify(productRepository, times(1)).existsByNameIgnoreCase(testProductInputDTO.getName());
-        verify(productRepository, never()).save(any(Product.class));
+            Product product2 = new Product("Mouse", "Mouse inalámbrico", "Electrónicos",
+                    new BigDecimal("25.00"), 50, 10);
+            product2.setId(2L);
+
+            when(productRepository.findAll()).thenReturn(List.of(product1, product2));
+
+            // Act
+            List<ProductSummaryDTO> result = productService.getAllProductsSummary();
+
+            // Assert
+            assertNotNull(result);
+            assertEquals(2, result.size());
+
+            ProductSummaryDTO firstProduct = result.get(0);
+            assertEquals(1L, firstProduct.getId());
+            assertEquals("Laptop", firstProduct.getName());
+            assertEquals("Electrónicos", firstProduct.getCategory());
+            assertEquals(new BigDecimal("1200.00"), firstProduct.getPrice());
+            assertEquals(10, firstProduct.getStock());
+            assertEquals("IN_STOCK", firstProduct.getStockStatus());
+
+            verify(productRepository, times(1)).findAll();
+        }
+
+        @Test
+        @DisplayName("Debe retornar lista vacía cuando no existen productos")
+        void getAllProductsSummary_ShouldReturnEmptyList_WhenNoProductsExist() {
+            // Arrange
+            when(productRepository.findAll()).thenReturn(List.of());
+
+            // Act
+            List<ProductSummaryDTO> result = productService.getAllProductsSummary();
+
+            // Assert
+            assertNotNull(result);
+            assertTrue(result.isEmpty());
+            verify(productRepository, times(1)).findAll();
+        }
+
+        @Test
+        @DisplayName("Debe retornar ProductResponseDTO completo cuando busca por ID")
+        void getProductById_ShouldReturnProductResponseDTO_WhenProductExists() {
+            // Arrange
+            when(productRepository.findById(1L)).thenReturn(Optional.of(testProduct));
+
+            // Act
+            ProductResponseDTO result = productService.getProductById(1L);
+
+            // Assert
+            assertNotNull(result);
+            assertEquals(testProduct.getId(), result.getId());
+            assertEquals(testProduct.getName(), result.getName());
+            assertEquals(testProduct.getDescription(), result.getDescription());
+            assertEquals(testProduct.getCategory(), result.getCategory());
+            assertEquals(testProduct.getPrice(), result.getPrice());
+            assertEquals(testProduct.getStock(), result.getStock());
+            assertEquals(testProduct.getMinimumStock(), result.getMinimumStock());
+            assertEquals(testProduct.isLowStock(), result.isLowStock());
+            assertEquals(testProduct.isOutOfStock(), result.isOutOfStock());
+            assertNotNull(result.getStockStatus());
+
+            verify(productRepository, times(1)).findById(1L);
+        }
+
+        @Test
+        @DisplayName("Debe lanzar excepción cuando el producto no existe")
+        void getProductById_ShouldThrowException_WhenProductDoesNotExist() {
+            // Arrange
+            when(productRepository.findById(1L)).thenReturn(Optional.empty());
+
+            // Act & Assert
+            assertThrows(ProductNotFoundException.class, () -> {
+                productService.getProductById(1L);
+            });
+
+            verify(productRepository, times(1)).findById(1L);
+        }
     }
 
+    @Nested
+    @DisplayName("Actualizar Producto")
+    class UpdateProductTests {
 
+        @Test
+        @DisplayName("Debe actualizar producto exitosamente con UpdateProductDTO")
+        void updateProduct_ShouldReturnUpdatedProduct_WhenProductExists() {
+            // Arrange
+            when(productRepository.findById(1L)).thenReturn(Optional.of(testProduct));
+            when(productRepository.existsByNameIgnoreCase("Laptop Actualizada")).thenReturn(false);
+            when(productRepository.save(any(Product.class))).thenReturn(testProduct);
 
+            // Act
+            ProductResponseDTO result = productService.updateProduct(1L, updateProductDTO);
 
-    @Test
-    void getAllProducts_ShouldReturnListOfProducts() {
-        Product product1 = new Product(
-                "Laptop",
-                "Laptop de alta gama",
-                "Electrónicos",
-                new BigDecimal("1200.00"),
-                10,
-                5
-        );
-        product1.setId(1L);
+            // Assert
+            assertNotNull(result);
+            verify(productRepository, times(1)).findById(1L);
+            verify(productRepository, times(1)).save(any(Product.class));
+        }
 
-        Product product2 = new Product(
-                "Mouse",
-                "Mouse inalámbrico",
-                "Electrónicos",
-                new BigDecimal("25.00"),
-                50,
-                10
-        );
-        product2.setId(2L);
+        @Test
+        @DisplayName("Debe lanzar excepción cuando el producto a actualizar no existe")
+        void updateProduct_ShouldThrowException_WhenProductDoesNotExist() {
+            // Arrange
+            when(productRepository.findById(1L)).thenReturn(Optional.empty());
 
-        List<Product> mockProducts = List.of(product1, product2);
+            // Act & Assert
+            assertThrows(ProductNotFoundException.class, () -> {
+                productService.updateProduct(1L, updateProductDTO);
+            });
 
-        // Configurar el mock
-        when(productRepository.findAll()).thenReturn(mockProducts);
+            verify(productRepository, times(1)).findById(1L);
+            verify(productRepository, never()).save(any(Product.class));
+        }
 
-        // Ejecutar el metodo a probar
-        List<ProductDTO> result = productService.getAllProducts();
+        @Test
+        @DisplayName("Debe actualizar solo el stock con StockUpdateDTO")
+        void updateProductStock_ShouldReturnUpdatedProduct_WhenProductExists() {
+            // Arrange
+            when(productRepository.findById(1L)).thenReturn(Optional.of(testProduct));
+            when(productRepository.save(any(Product.class))).thenReturn(testProduct);
 
-        // Verificar los resultados
-        assertNotNull(result);
-        assertEquals(2, result.size());
+            // Act
+            ProductResponseDTO result = productService.updateProductStock(1L, stockUpdateDTO);
 
-        // Verificar el primer producto
-        ProductDTO firstProduct = result.getFirst();
-        assertEquals(1L, firstProduct.getId());
-        assertEquals("Laptop", firstProduct.getName());
-        assertEquals("Laptop de alta gama", firstProduct.getDescription());
-        assertEquals("Electrónicos", firstProduct.getCategory());
-        assertEquals(new BigDecimal("1200.00"), firstProduct.getPrice());
-        assertEquals(10, firstProduct.getStock());
-        assertEquals(5, firstProduct.getMinimumStock());
-
-        // Verificar el segundo producto
-        ProductDTO secondProduct = result.get(1);
-        assertEquals(2L, secondProduct.getId());
-        assertEquals("Mouse", secondProduct.getName());
-        assertEquals("Mouse inalámbrico", secondProduct.getDescription());
-        assertEquals("Electrónicos", secondProduct.getCategory());
-        assertEquals(new BigDecimal("25.00"), secondProduct.getPrice());
-        assertEquals(50, secondProduct.getStock());
-        assertEquals(10, secondProduct.getMinimumStock());
-
-        // Verificar que el repositorio fue llamado correctamente
-        verify(productRepository, times(1)).findAll();
+            // Assert
+            assertNotNull(result);
+            verify(productRepository, times(1)).findById(1L);
+            verify(productRepository, times(1)).save(any(Product.class));
+        }
     }
 
-    @Test
-    void getAllProducts_ShouldReturnEmptyList_WhenNoProductsExist() {
-        // Arrange
-        when(productRepository.findAll()).thenReturn(List.of());
+    @Nested
+    @DisplayName("Eliminar Producto")
+    class DeleteProductTests {
 
-        // Act
-        List<ProductDTO> result = productService.getAllProducts();
+        @Test
+        @DisplayName("Debe eliminar producto exitosamente cuando existe")
+        void deleteProduct_ShouldDeleteProduct_WhenProductExists() {
+            // Arrange
+            when(productRepository.existsById(1L)).thenReturn(true);
 
-        // Assert
-        assertNotNull(result);
-        assertTrue(result.isEmpty());
-        assertEquals(0, result.size());
-
-        // Verify
-        verify(productRepository, times(1)).findAll();
-    }
-
-/*
-    @Test
-    void getProductsWithFilters_ShouldReturnFilteredProducts_WhenFiltersAreApplied() {
-        // Configurar el mock
-        when(productRepository.findByCategoryAndName("Electrónicos", "Laptop", Mockito.any()))
-                .thenReturn((Page<Product>) List.of(testProduct));
-
-        // Ejecutar el metodo a probar
-        List<ProductDTO> result = productService.getProductsWithFilters("Electrónicos", "Laptop", null)
-                .stream()
-                .collect(Collectors.toList());
-
-        // Verificar los resultados
-        assertNotNull(result);
-        assertEquals(1, result.size());
-        assertEquals(testProductDTO.getId(), result.get(0).getId());
-        assertEquals(testProductDTO.getName(), result.get(0).getName());
-        assertEquals(testProductDTO.getDescription(), result.get(0).getDescription());
-        assertEquals(testProductDTO.getCategory(), result.get(0).getCategory());
-        assertEquals(testProductDTO.getPrice(), result.get(0).getPrice());
-        assertEquals(testProductDTO.getStock(), result.get(0).getStock());
-        assertEquals(testProductDTO.getMinimumStock(), result.get(0).getMinimumStock());
-
-        // Verificar que el repositorio fue llamado correctamente
-        verify(productRepository, times(1)).findByCategoryAndName("Electrónicos", "Laptop", Mockito.any());
-    }
-
-
-*/
-    @Test
-    void getProductById_ShouldReturnProduct_WhenProductExists() {
-        // Configurar el mock
-        when(productRepository.findById(1L)).thenReturn(java.util.Optional.of(testProduct));
-
-        // Ejecutar el metodo a probar
-        ProductDTO result = productService.getProductById(1L);
-
-        // Verificar los resultados
-        assertNotNull(result);
-        assertEquals(testProductDTO.getId(), result.getId());
-        assertEquals(testProductDTO.getName(), result.getName());
-        assertEquals(testProductDTO.getDescription(), result.getDescription());
-        assertEquals(testProductDTO.getCategory(), result.getCategory());
-        assertEquals(testProductDTO.getPrice(), result.getPrice());
-        assertEquals(testProductDTO.getStock(), result.getStock());
-        assertEquals(testProductDTO.getMinimumStock(), result.getMinimumStock());
-
-        // Verificar que el repositorio fue llamado correctamente
-        verify(productRepository, times(1)).findById(1L);
-    }
-    
-    /*
-    @Test
-    void updateProduct_ShouldReturnUpdatedProduct_WhenProductExists() {
-        // Configurar el mock
-        when(productRepository.findById(1L)).thenReturn(java.util.Optional.of(testProduct));
-        when(productRepository.existsByNameIgnoreCase("Laptop")).thenReturn(false);
-        when(productRepository.save(any(Product.class))).thenReturn(testProduct);
-
-        // Crear un DTO de producto actualizado
-        ProductDTO updatedProductDTO = new ProductDTO(
-                1L,
-                "Laptop",
-                "Laptop de alta gama - Actualizado",
-                "Electrónicos",
-                new BigDecimal("1300.00"),
-                15,
-                5
-        );
-
-        // Ejecutar el metodo a probar
-        ProductDTO result = productService.updateProduct(1L, updatedProductDTO);
-
-        // Verificar los resultados
-        assertNotNull(result);
-        assertEquals(updatedProductDTO.getId(), result.getId());
-        assertEquals(updatedProductDTO.getName(), result.getName());
-        assertEquals(updatedProductDTO.getDescription(), result.getDescription());
-        assertEquals(updatedProductDTO.getCategory(), result.getCategory());
-        assertEquals(updatedProductDTO.getPrice(), result.getPrice());
-        assertEquals(updatedProductDTO.getStock(), result.getStock());
-        assertEquals(updatedProductDTO.getMinimumStock(), result.getMinimumStock());
-
-        // Verificar que el repositorio fue llamado correctamente
-        verify(productRepository, times(1)).findById(1L);
-        verify(productRepository, times(1)).existsByNameIgnoreCase("Laptop");
-        verify(productRepository, times(1)).save(any(Product.class));
-    }
-
-*/
-
-    @Test
-    void updateProduct_ShouldThrowException_WhenProductDoesNotExist() {
-        // Configurar el mock
-        when(productRepository.findById(1L)).thenReturn(java.util.Optional.empty());
-
-        // Crear un DTO de producto actualizado
-        ProductDTO updatedProductDTO = new ProductDTO(
-                1L,
-                "Laptop",
-                "Laptop de alta gama - Actualizado",
-                "Electrónicos",
-                new BigDecimal("1300.00"),
-                15,
-                5
-        );
-
-        // Ejecutar y verificar la excepción
-        assertThrows(ProductNotFoundException.class, () -> {
-            productService.updateProduct(1L, updatedProductDTO);
-        });
-
-        // Verificar que el repositorio fue llamado correctamente
-        verify(productRepository, times(1)).findById(1L);
-        verify(productRepository, never()).existsByNameIgnoreCase(anyString());
-        verify(productRepository, never()).save(any(Product.class));
-    }
-
-/*
-    @Test
-    void updateProduct_ShouldThrowException_WhenProductNameExists() {
-        // Configurar el mock
-        when(productRepository.findById(1L)).thenReturn(java.util.Optional.of(testProduct));
-        when(productRepository.existsByNameIgnoreCase("Laptop")).thenReturn(true);
-
-        // Crear un DTO de producto actualizado
-        ProductDTO updatedProductDTO = new ProductDTO(
-                1L,
-                "Laptop",
-                "Laptop de alta gama - Actualizado",
-                "Electrónicos",
-                new BigDecimal("1300.00"),
-                15,
-                5
-        );
-
-        // Ejecutar y verificar la excepción
-        assertThrows(DuplicateProductException.class, () -> {
-            productService.updateProduct(1L, updatedProductDTO);
-        });
-
-        // Verificar que el repositorio fue llamado correctamente
-        verify(productRepository, times(1)).findById(1L);
-        verify(productRepository, times(1)).existsByNameIgnoreCase("Laptop");
-        verify(productRepository, never()).save(any(Product.class));
-    }*/
-
-    /*
-    @Test
-    void deleteProduct_ShouldDeleteProduct_WhenProductExists() {
-        // Configurar el mock
-        when(productRepository.findById(1L)).thenReturn(java.util.Optional.of(testProduct));
-
-        // Ejecutar el metodo a probar
-        productService.deleteProduct(1L);
-
-        // Verificar que el producto fue eliminado
-        verify(productRepository, times(1)).deleteById(1L);
-    }*/
-
-
-    @Test
-    void deleteProduct_ShouldThrowException_WhenProductDoesNotExist() {
-        // Configurar el mock
-        when(productRepository.findById(1L)).thenReturn(java.util.Optional.empty());
-
-        // Ejecutar y verificar la excepción
-        assertThrows(ProductNotFoundException.class, () -> {
+            // Act
             productService.deleteProduct(1L);
-        });
 
-        // Verificar que el repositorio no intentó eliminar nada
-        verify(productRepository, never()).deleteById(anyLong());
+            // Assert
+            verify(productRepository, times(1)).existsById(1L);
+            verify(productRepository, times(1)).deleteById(1L);
+        }
+
+        @Test
+        @DisplayName("Debe lanzar excepción cuando el producto no existe")
+        void deleteProduct_ShouldThrowException_WhenProductDoesNotExist() {
+            // Arrange
+            when(productRepository.existsById(1L)).thenReturn(false);
+
+            // Act & Assert
+            assertThrows(ProductNotFoundException.class, () -> {
+                productService.deleteProduct(1L);
+            });
+
+            verify(productRepository, times(1)).existsById(1L);
+            verify(productRepository, never()).deleteById(anyLong());
+        }
     }
 
+    @Nested
+    @DisplayName("Búsquedas")
+    class SearchTests {
 
-    @Test
-    void searchProductsByName_ShouldReturnListOfProducts_WhenNameMatches() {
-        // Configurar el mock
-        when(productRepository.findByNameContainingIgnoreCase("Laptop")).thenReturn(List.of(testProduct));
+        @Test
+        @DisplayName("Debe buscar productos por nombre y retornar ProductSummaryDTO")
+        void searchProductsByName_ShouldReturnListOfProductSummary_WhenNameMatches() {
+            // Arrange
+            when(productRepository.findByNameContainingIgnoreCase("Laptop")).thenReturn(List.of(testProduct));
 
-        // Ejecutar el metodo a probar
-        List<ProductDTO> result = productService.searchProductsByName("Laptop");
+            // Act
+            List<ProductSummaryDTO> result = productService.searchProductsByName("Laptop");
 
-        // Verificar los resultados
-        assertNotNull(result);
-        assertEquals(1, result.size());
-        assertEquals(testProductDTO.getId(), result.get(0).getId());
-        assertEquals(testProductDTO.getName(), result.get(0).getName());
+            // Assert
+            assertNotNull(result);
+            assertEquals(1, result.size());
+            assertEquals(testProduct.getId(), result.get(0).getId());
+            assertEquals(testProduct.getName(), result.get(0).getName());
 
-        // Verificar que el repositorio fue llamado correctamente
-        verify(productRepository, times(1)).findByNameContainingIgnoreCase("Laptop");
+            verify(productRepository, times(1)).findByNameContainingIgnoreCase("Laptop");
+        }
+
+        @Test
+        @DisplayName("Debe buscar productos por categoría y retornar ProductSummaryDTO")
+        void getProductsByCategory_ShouldReturnListOfProductSummary_WhenCategoryMatches() {
+            // Arrange
+            when(productRepository.findByCategoryIgnoreCase("Electrónicos")).thenReturn(List.of(testProduct));
+
+            // Act
+            List<ProductSummaryDTO> result = productService.getProductsByCategory("Electrónicos");
+
+            // Assert
+            assertNotNull(result);
+            assertEquals(1, result.size());
+            assertEquals(testProduct.getCategory(), result.get(0).getCategory());
+
+            verify(productRepository, times(1)).findByCategoryIgnoreCase("Electrónicos");
+        }
+
+        @Test
+        @DisplayName("Debe buscar productos por rango de precio y retornar ProductSummaryDTO")
+        void getProductsByPriceRange_ShouldReturnListOfProductSummary_WhenPriceRangeMatches() {
+            // Arrange
+            when(productRepository.findByPriceBetween(1000.00, 1500.00)).thenReturn(List.of(testProduct));
+
+            // Act
+            List<ProductSummaryDTO> result = productService.getProductsByPriceRange(1000.00, 1500.00);
+
+            // Assert
+            assertNotNull(result);
+            assertEquals(1, result.size());
+            assertTrue(result.get(0).getPrice().doubleValue() >= 1000.00);
+            assertTrue(result.get(0).getPrice().doubleValue() <= 1500.00);
+
+            verify(productRepository, times(1)).findByPriceBetween(1000.00, 1500.00);
+        }
     }
 
-    @Test
-    void searchProductsByName_ShouldReturnEmptyList_WhenNoProductsMatch() {
-        // Configurar el mock
-        when(productRepository.findByNameContainingIgnoreCase("NonExistent")).thenReturn(List.of());
+    @Nested
+    @DisplayName("Gestión de Stock")
+    class StockManagementTests {
 
-        // Ejecutar el metodo a probar
-        List<ProductDTO> result = productService.searchProductsByName("NonExistent");
+        @Test
+        @DisplayName("Debe obtener productos con stock bajo como ProductResponseDTO")
+        void getProductsWithLowStock_ShouldReturnListOfProductResponse_WhenLowStockExists() {
+            // Arrange
+            Product lowStockProduct = new Product("Producto Bajo", "Descripción", "Categoría",
+                    new BigDecimal("100.00"), 2, 5);
+            lowStockProduct.setId(2L);
 
-        // Verificar los resultados
-        assertNotNull(result);
-        assertTrue(result.isEmpty());
+            when(productRepository.findProductsWithLowStock()).thenReturn(List.of(lowStockProduct));
 
-        // Verificar que el repositorio fue llamado correctamente
-        verify(productRepository, times(1)).findByNameContainingIgnoreCase("NonExistent");
+            // Act
+            List<ProductResponseDTO> result = productService.getProductsWithLowStock();
+
+            // Assert
+            assertNotNull(result);
+            assertEquals(1, result.size());
+            assertTrue(result.get(0).isLowStock());
+            assertEquals("LOW_STOCK", result.get(0).getStockStatus());
+
+            verify(productRepository, times(1)).findProductsWithLowStock();
+        }
+
+        @Test
+        @DisplayName("Debe obtener productos sin stock como ProductResponseDTO")
+        void getProductsOutOfStock_ShouldReturnListOfProductResponse_WhenOutOfStockExists() {
+            // Arrange
+            Product outOfStockProduct = new Product("Producto Agotado", "Descripción", "Categoría",
+                    new BigDecimal("100.00"), 0, 5);
+            outOfStockProduct.setId(3L);
+
+            when(productRepository.findProductsOutOfStock()).thenReturn(List.of(outOfStockProduct));
+
+            // Act
+            List<ProductResponseDTO> result = productService.getProductsOutOfStock();
+
+            // Assert
+            assertNotNull(result);
+            assertEquals(1, result.size());
+            assertTrue(result.get(0).isOutOfStock());
+            assertEquals("OUT_OF_STOCK", result.get(0).getStockStatus());
+
+            verify(productRepository, times(1)).findProductsOutOfStock();
+        }
     }
 
-    @Test
-    void getProductsByCategory_ShouldReturnListOfProducts_WhenCategoryMatches() {
-        // Configurar el mock
-        when(productRepository.findByCategoryIgnoreCase("Electrónicos")).thenReturn(List.of(testProduct));
+    @Nested
+    @DisplayName("Paginación")
+    class PaginationTests {
 
-        // Ejecutar el metodo a probar
-        List<ProductDTO> result = productService.getProductsByCategory("Electrónicos");
+        @Test
+        @DisplayName("Debe retornar productos paginados como ProductSummaryDTO")
+        void getAllProductsPaginated_ShouldReturnPaginatedProductSummary_WhenProductsExist() {
+            // Arrange
+            Product product1 = new Product("Laptop", "Descripción", "Electrónicos",
+                    new BigDecimal("1200.00"), 10, 5);
+            product1.setId(1L);
 
-        // Verificar los resultados
-        assertNotNull(result);
-        assertEquals(1, result.size());
-        assertEquals(testProductDTO.getId(), result.get(0).getId());
-        assertEquals(testProductDTO.getName(), result.get(0).getName());
+            Product product2 = new Product("Mouse", "Descripción", "Electrónicos",
+                    new BigDecimal("25.00"), 50, 10);
+            product2.setId(2L);
 
-        // Verificar que el repositorio fue llamado correctamente
-        verify(productRepository, times(1)).findByCategoryIgnoreCase("Electrónicos");
+            Page<Product> mockPage = new PageImpl<>(List.of(product1, product2));
+            Pageable pageable = PageRequest.of(0, 10);
+
+            when(productRepository.findAll(pageable)).thenReturn(mockPage);
+
+            // Act
+            Page<ProductSummaryDTO> result = productService.getAllProductsPaginated(pageable);
+
+            // Assert
+            assertNotNull(result);
+            assertEquals(2, result.getContent().size());
+
+            ProductSummaryDTO firstProduct = result.getContent().get(0);
+            assertEquals(1L, firstProduct.getId());
+            assertEquals("Laptop", firstProduct.getName());
+            assertEquals("Electrónicos", firstProduct.getCategory());
+
+            verify(productRepository, times(1)).findAll(pageable);
+        }
+
+        @Test
+        @DisplayName("Debe buscar con filtros y paginación como ProductSummaryDTO")
+        void getProductsWithFilters_ShouldReturnFilteredAndPagedProductSummary() {
+            // Arrange
+            Page<Product> mockPage = new PageImpl<>(List.of(testProduct));
+            Pageable pageable = PageRequest.of(0, 10);
+
+            when(productRepository.findByCategoryAndName("Electrónicos", "Laptop", pageable))
+                    .thenReturn(mockPage);
+
+            // Act
+            Page<ProductSummaryDTO> result = productService.getProductsWithFilters("Electrónicos", "Laptop", pageable);
+
+            // Assert
+            assertNotNull(result);
+            assertEquals(1, result.getContent().size());
+            assertEquals("Electrónicos", result.getContent().get(0).getCategory());
+
+            verify(productRepository, times(1)).findByCategoryAndName("Electrónicos", "Laptop", pageable);
+        }
     }
 
-    @Test
-    void getProductsByCategory_ShouldReturnEmptyList_WhenNoProductsMatch() {
-        // Configurar el mock
-        when(productRepository.findByCategoryIgnoreCase("NonExistent")).thenReturn(List.of());
+    @Nested
+    @DisplayName("Utilidades")
+    class UtilityTests {
 
-        // Ejecutar el metodo a probar
-        List<ProductDTO> result = productService.getProductsByCategory("NonExistent");
+        @Test
+        @DisplayName("Debe obtener todas las categorías")
+        void getAllCategories_ShouldReturnListOfCategories_WhenCategoriesExist() {
+            // Arrange
+            when(productRepository.findAllCategories()).thenReturn(List.of("Electrónicos", "Hogar", "Jardín"));
 
-        // Verificar los resultados
-        assertNotNull(result);
-        assertTrue(result.isEmpty());
+            // Act
+            List<String> result = productService.getAllCategories();
 
-        // Verificar que el repositorio fue llamado correctamente
-        verify(productRepository, times(1)).findByCategoryIgnoreCase("NonExistent");
+            // Assert
+            assertNotNull(result);
+            assertEquals(3, result.size());
+            assertTrue(result.contains("Electrónicos"));
+            assertTrue(result.contains("Hogar"));
+            assertTrue(result.contains("Jardín"));
+
+            verify(productRepository, times(1)).findAllCategories();
+        }
+
+        @Test
+        @DisplayName("Debe obtener estadísticas de productos")
+        void getProductStats_ShouldReturnCorrectStatistics() {
+            // Arrange
+            when(productRepository.findAll()).thenReturn(List.of(testProduct));
+            when(productRepository.findProductsWithLowStock()).thenReturn(List.of());
+            when(productRepository.findProductsOutOfStock()).thenReturn(List.of());
+            when(productRepository.findAllCategories()).thenReturn(List.of("Electrónicos"));
+
+            // Act
+            Map<String, Object> result = productService.getProductStats();
+
+            // Assert
+            assertNotNull(result);
+            assertEquals(1, result.get("totalProducts"));
+            assertEquals(0, result.get("lowStockProducts"));
+            assertEquals(0, result.get("outOfStockProducts"));
+            assertEquals(1, result.get("totalCategories"));
+            assertEquals(1, result.get("inStockProducts"));
+
+            verify(productRepository, times(1)).findAll();
+            verify(productRepository, times(1)).findProductsWithLowStock();
+            verify(productRepository, times(1)).findProductsOutOfStock();
+            verify(productRepository, times(1)).findAllCategories();
+        }
     }
-
-
-    @Test
-    void getProductsWithLowStock_ShouldReturnListOfProducts_WhenLowStockExists() {
-        // Configurar el mock
-        when(productRepository.findProductsWithLowStock()).thenReturn(List.of(testProduct));
-
-        // Ejecutar el metodo a probar
-        List<ProductDTO> result = productService.getProductsWithLowStock();
-
-        // Verificar los resultados
-        assertNotNull(result);
-        assertEquals(1, result.size());
-        assertEquals(testProductDTO.getId(), result.get(0).getId());
-        assertEquals(testProductDTO.getName(), result.get(0).getName());
-
-        // Verificar que el repositorio fue llamado correctamente
-        verify(productRepository, times(1)).findProductsWithLowStock();
-    }
-
-    @Test
-    void getProductsWithLowStock_ShouldReturnEmptyList_WhenNoLowStockExists() {
-        // Configurar el mock
-        when(productRepository.findProductsWithLowStock()).thenReturn(List.of());
-
-        // Ejecutar el metodo a probar
-        List<ProductDTO> result = productService.getProductsWithLowStock();
-
-        // Verificar los resultados
-        assertNotNull(result);
-        assertTrue(result.isEmpty());
-
-        // Verificar que el repositorio fue llamado correctamente
-        verify(productRepository, times(1)).findProductsWithLowStock();
-    }
-
-    @Test
-    void getProductsOutOfStock_ShouldReturnListOfProducts_WhenOutOfStockExists() {
-        // Configurar el mock
-        when(productRepository.findProductsOutOfStock()).thenReturn(List.of(testProduct));
-
-        // Ejecutar el metodo a probar
-        List<ProductDTO> result = productService.getProductsOutOfStock();
-
-        // Verificar los resultados
-        assertNotNull(result);
-        assertEquals(1, result.size());
-        assertEquals(testProductDTO.getId(), result.get(0).getId());
-        assertEquals(testProductDTO.getName(), result.get(0).getName());
-
-        // Verificar que el repositorio fue llamado correctamente
-        verify(productRepository, times(1)).findProductsOutOfStock();
-    }
-
-    @Test
-    void getProductsOutOfStock_ShouldReturnEmptyList_WhenNoOutOfStockExists() {
-        // Configurar el mock
-        when(productRepository.findProductsOutOfStock()).thenReturn(List.of());
-
-        // Ejecutar el metodo a probar
-        List<ProductDTO> result = productService.getProductsOutOfStock();
-
-        // Verificar los resultados
-        assertNotNull(result);
-        assertTrue(result.isEmpty());
-
-        // Verificar que el repositorio fue llamado correctamente
-        verify(productRepository, times(1)).findProductsOutOfStock();
-    }
-
-    @Test
-    void getProductsByPriceRange_ShouldReturnListOfProducts_WhenPriceRangeMatches() {
-        // Configurar el mock
-        when(productRepository.findByPriceBetween(1000.00, 1500.00)).thenReturn(List.of(testProduct));
-
-        // Ejecutar el metodo a probar
-        List<ProductDTO> result = productService.getProductsByPriceRange(1000.00, 1500.00);
-
-        // Verificar los resultados
-        assertNotNull(result);
-        assertEquals(1, result.size());
-        assertEquals(testProductDTO.getId(), result.get(0).getId());
-        assertEquals(testProductDTO.getName(), result.get(0).getName());
-
-        // Verificar que el repositorio fue llamado correctamente
-        verify(productRepository, times(1)).findByPriceBetween(1000.00, 1500.00);
-    }
-
-    @Test
-    void getProductsByPriceRange_ShouldReturnEmptyList_WhenNoProductsMatchPriceRange() {
-        // Configurar el mock
-        when(productRepository.findByPriceBetween(2000.00, 3000.00)).thenReturn(List.of());
-
-        // Ejecutar el metodo a probar
-        List<ProductDTO> result = productService.getProductsByPriceRange(2000.00, 3000.00);
-
-        // Verificar los resultados
-        assertNotNull(result);
-        assertTrue(result.isEmpty());
-
-        // Verificar que el repositorio fue llamado correctamente
-        verify(productRepository, times(1)).findByPriceBetween(2000.00, 3000.00);
-    }
-
-    @Test
-    void getAllCategories_ShouldReturnListOfCategories_WhenCategoriesExist() {
-        // Configurar el mock
-        when(productRepository.findAllCategories()).thenReturn(List.of("Electrónicos", "Hogar", "Jardín"));
-
-        // Ejecutar el metodo a probar
-        List<String> result = productService.getAllCategories();
-
-        // Verificar los resultados
-        assertNotNull(result);
-        assertEquals(3, result.size());
-        assertTrue(result.contains("Electrónicos"));
-        assertTrue(result.contains("Hogar"));
-        assertTrue(result.contains("Jardín"));
-
-        // Verificar que el repositorio fue llamado correctamente
-        verify(productRepository, times(1)).findAllCategories();
-    }
-
-    @Test
-    void getAllCategories_ShouldReturnEmptyList_WhenNoCategoriesExist() {
-        // Configurar el mock
-        when(productRepository.findAllCategories()).thenReturn(List.of());
-
-        // Ejecutar el metodo a probar
-        List<String> result = productService.getAllCategories();
-
-        // Verificar los resultados
-        assertNotNull(result);
-        assertTrue(result.isEmpty());
-
-        // Verificar que el repositorio fue llamado correctamente
-        verify(productRepository, times(1)).findAllCategories();
-    }
-
-    @Test
-    void getAllProductsPaginated_ShouldReturnPaginatedProducts_WhenProductsExist() {
-        // Arrange
-        Product product1 = new Product(
-                "Laptop",
-                "Laptop de alta gama",
-                "Electrónicos",
-                new BigDecimal("1200.00"),
-                10,
-                5
-        );
-        product1.setId(1L);
-
-        Product product2 = new Product(
-                "Mouse",
-                "Mouse inalámbrico",
-                "Electrónicos",
-                new BigDecimal("25.00"),
-                50,
-                10
-        );
-        product2.setId(2L);
-
-        Page<Product> mockPage = new PageImpl<>(List.of(product1, product2));
-        Pageable pageable = PageRequest.of(0, 10);
-
-        when(productRepository.findAll(pageable)).thenReturn(mockPage);
-
-        // Act
-        Page<ProductDTO> result = productService.getAllProductsPaginated(pageable);
-
-        // Assert
-        assertNotNull(result);
-        assertEquals(2, result.getContent().size());
-
-        // Verify first product
-        ProductDTO firstProduct = result.getContent().get(0);
-        assertEquals(1L, firstProduct.getId());
-        assertEquals("Laptop", firstProduct.getName());
-        assertEquals("Laptop de alta gama", firstProduct.getDescription());
-        assertEquals("Electrónicos", firstProduct.getCategory());
-        assertEquals(new BigDecimal("1200.00"), firstProduct.getPrice());
-        assertEquals(10, firstProduct.getStock());
-        assertEquals(5, firstProduct.getMinimumStock());
-
-        // Verify second product
-        ProductDTO secondProduct = result.getContent().get(1);
-        assertEquals(2L, secondProduct.getId());
-        assertEquals("Mouse", secondProduct.getName());
-        assertEquals("Mouse inalámbrico", secondProduct.getDescription());
-        assertEquals("Electrónicos", secondProduct.getCategory());
-        assertEquals(new BigDecimal("25.00"), secondProduct.getPrice());
-        assertEquals(50, secondProduct.getStock());
-        assertEquals(10, secondProduct.getMinimumStock());
-
-        verify(productRepository, times(1)).findAll(pageable);
-    }
-
-    @Test
-    void getAllProductsPaginated_ShouldReturnEmptyPage_WhenNoProductsExist() {
-        Page<Product> mockPage = new PageImpl<>(List.of());
-        Pageable pageable = PageRequest.of(0, 10);
-
-        when(productRepository.findAll(pageable)).thenReturn(mockPage);
-
-        Page<ProductDTO> result = productService.getAllProductsPaginated(pageable);
-
-        assertNotNull(result);
-        assertTrue(result.isEmpty());
-        assertEquals(0, result.getContent().size());
-
-        verify(productRepository, times(1)).findAll(pageable);
-    }
-
-    @Test
-    void getAllProductsPaginated_ShouldReturnCorrectPageInfo_WhenPagingParametersAreProvided() {
-        List<Product> allProducts = List.of(
-                new Product("Product1", "Desc1", "Cat1", BigDecimal.ONE, 1, 1),
-                new Product("Product2", "Desc2", "Cat2", BigDecimal.TEN, 2, 2),
-                new Product("Product3", "Desc3", "Cat3", new BigDecimal("100"), 3, 3)
-        );
-
-        Pageable pageable = PageRequest.of(1, 2);
-        Page<Product> mockPage = new PageImpl<>(
-                List.of(allProducts.get(2)),
-                pageable,
-                3
-        );
-
-        when(productRepository.findAll(pageable)).thenReturn(mockPage);
-
-        Page<ProductDTO> result = productService.getAllProductsPaginated(pageable);
-
-        assertNotNull(result);
-        assertEquals(1, result.getContent().size());
-        assertEquals(3, result.getTotalElements());
-        assertEquals(2, result.getTotalPages());
-        assertEquals(1, result.getNumber());
-        assertEquals(2, result.getSize());
-
-        verify(productRepository, times(1)).findAll(pageable);
-    }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 }

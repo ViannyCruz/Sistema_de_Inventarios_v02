@@ -2,11 +2,13 @@ package com.sistema_de_inventarios_v02.model;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
+import org.hibernate.envers.Audited;
 
 import java.math.BigDecimal;
 
 @Entity
 @Table(name = "products")
+@Audited
 public class Product {
 
     @Id

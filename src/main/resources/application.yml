@@ -1,41 +1,79 @@
-
-
 spring:
   profiles:
     active: default
 
-  # Configuración de base de datos para pruebas
   datasource:
     url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
     driver-class-name: org.h2.Driver
     username: sa
     password: ""
 
-  # JPA para pruebas
   jpa:
     database-platform: org.hibernate.dialect.H2Dialect
     hibernate:
       ddl-auto: create-drop
-    show-sql: false
+    show-sql: true
     properties:
       hibernate:
-        format_sql: false
+        format_sql: true
+        # Configuración específica para Envers
+        envers:
+          store_data_at_delete: true
+          track_entities_changed_by_revision: true
+          default_schema: public
+          default_catalog: testdb
+          # Configuraciones adicionales para debugging
+          revision_field_name: rev
+          revision_type_field_name: revtype
+          audit_table_suffix: _aud
+          # Habilitar logging detallado
+          audit_strategy: org.hibernate.envers.strategy.DefaultAuditStrategy
 
-  # Thymeleaf para pruebas
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+      settings:
+        web-allow-others: false
+
   thymeleaf:
     cache: false
+    prefix: classpath:/templates/
+    suffix: .html
+    mode: HTML
+    encoding: UTF-8
+    servlet:
+      content-type: text/html
 
-# Logging configurado para pruebas
+# Configuración de logging mejorada
 logging:
   level:
-    com.sistema_de_inventarios_v02: INFO
-    org.springframework.test: WARN
-    org.hibernate: WARN
+    root: INFO
+    com.sistema_de_inventarios_v02: DEBUG
+    org.springframework: WARN
+    org.hibernate: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.hibernate.envers: DEBUG
+    org.hibernate.event: DEBUG
+    org.springframework.transaction: DEBUG
 
+# Configuración personalizada de la aplicación
 app:
   jwt:
     secret: mySecretKey12345678901234567890123456789012345678901234567890123456789012345678901234567890
-    expiration: 86400000 # 24 horas
+    expiration: 86400000
+  api:
+    version: v1
+    base-path: /api
+
 admin:
   username: admin
   password: admin123
+  roles: ADMIN
+
+security:
+  cors:
+    allowed-origins: "*"
+    allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+    allowed-headers: "*"

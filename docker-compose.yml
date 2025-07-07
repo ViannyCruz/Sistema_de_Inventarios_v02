@@ -1,31 +1,19 @@
+version: '3.8'
+
 services:
-  # Tu aplicación Spring Boot
   app:
     build: .
     ports:
-      - "8081:8081"  # Puerto 8081 tanto externo como interno
+      - "8080:8080"
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/sistemainventario?useSSL=false&allowPublicKeyRetrieval=true
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: rootpass
       SPRING_FLYWAY_ENABLED: "true"
-      # Variables de Keycloak - REEMPLAZA CON EL CLIENT SECRET REAL
-      KEYCLOAK_INTERNAL_URL: http://keycloak:8080
-      KEYCLOAK_EXTERNAL_URL: http://localhost:8080
-      KEYCLOAK_CLIENT_ID: inventory-system
-      KEYCLOAK_CLIENT_SECRET: PEGA_AQUI_EL_CLIENT_SECRET_REAL_DE_KEYCLOAK
-      KEYCLOAK_REALM: inventory-realm
-      SERVER_PORT: 8081
     depends_on:
       db:
         condition: service_healthy
-      keycloak:
-        condition: service_started
-    restart: on-failure
-    networks:
-      - app-network
 
-  # Base de datos MySQL para tu aplicación
   db:
     image: mysql:8.0.33
     command: --default-authentication-plugin=mysql_native_password
@@ -39,44 +27,6 @@ services:
       retries: 10
     volumes:
       - mysql_data:/var/lib/mysql
-    networks:
-      - app-network
-
-  # Keycloak legacy (más compatible)
-  keycloak:
-    image: jboss/keycloak:16.1.1
-    container_name: keycloak-inventory
-    environment:
-      KEYCLOAK_USER: admin
-      KEYCLOAK_PASSWORD: admin
-      DB_VENDOR: h2
-    ports:
-      - "8080:8080"
-    networks:
-      - app-network
-
-  # Base de datos PostgreSQL para Keycloak (COMENTADO TEMPORALMENTE)
-  # keycloak-db:
-  #   image: postgres:15
-  #   container_name: keycloak-db
-  #   environment:
-  #     POSTGRES_DB: keycloak
-  #     POSTGRES_USER: keycloak
-  #     POSTGRES_PASSWORD: keycloak
-  #   volumes:
-  #     - keycloak_db_data:/var/lib/postgresql/data
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "pg_isready -U keycloak"]
-  #     interval: 5s
-  #     timeout: 10s
-  #     retries: 10
-  #   networks:
-  #     - app-network
 
 volumes:
   mysql_data:
-  keycloak_db_data:
-
-networks:
-  app-network:
-    driver: bridge

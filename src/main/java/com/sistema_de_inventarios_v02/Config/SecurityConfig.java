@@ -1,5 +1,6 @@
 package com.sistema_de_inventarios_v02.Config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -13,9 +14,21 @@ import org.springframework.security.oauth2.core.oidc.OidcIdToken;
 import org.springframework.security.oauth2.core.oidc.user.OidcUserAuthority;
 import org.springframework.security.oauth2.core.user.OAuth2UserAuthority;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.logout.LogoutHandler;
+import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
+import org.springframework.security.web.authentication.logout.CookieClearingLogoutHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
+import org.springframework.web.util.UriComponentsBuilder;
+
+import java.io.IOException;
 import java.util.*;
 
 @Configuration
@@ -25,15 +38,22 @@ public class SecurityConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(SecurityConfig.class);
 
+    @Value("${keycloak.logout-url:http://localhost:8080/realms/inventory-realm/protocol/openid-connect/logout}")
+    private String keycloakLogoutUrl;
+
+    @Value("${app.base-url:http://localhost:8081}")
+    private String appBaseUrl;
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf
-                        .ignoringRequestMatchers("/api/**")
+                        .ignoringRequestMatchers("/api/**", "/custom-logout")
                 )
                 .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/css/**", "/js/**", "/images/**", "/favicon.ico").permitAll()
-                        .requestMatchers("/login", "/logout", "/error").permitAll()
+                        .requestMatchers("/css/**", "/js/**", "/images/**", "/assets/**", "/favicon.ico").permitAll()
+                        .requestMatchers("/static/**", "/webjars/**", "/resources/**").permitAll()
+                        .requestMatchers("/login", "/logout", "/custom-logout", "/error").permitAll()
                         .requestMatchers("/api/debug/**").permitAll()
 
                         .requestMatchers("/admin/**").hasRole("ADMIN")
@@ -66,22 +86,137 @@ public class SecurityConfig {
                         )
                 )
                 .logout(logout -> logout
-                        .logoutUrl("/logout")
+                        .logoutRequestMatcher(new AntPathRequestMatcher("/logout", "POST"))
+                        .addLogoutHandler(cookieClearingLogoutHandler())
+                        .addLogoutHandler(keycloakLogoutHandler())
                         .logoutSuccessUrl("/login?logout=true")
                         .invalidateHttpSession(true)
                         .clearAuthentication(true)
-                        .deleteCookies("JSESSIONID")
+                        .deleteCookies("JSESSIONID", "SESSION", "KEYCLOAK_SESSION", "KEYCLOAK_IDENTITY")
+                        .permitAll()
                 )
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
                         .maximumSessions(1)
                         .maxSessionsPreventsLogin(false)
+                        .and()
+                        .sessionFixation().changeSessionId()
                 )
                 .exceptionHandling(exceptions -> exceptions
                         .accessDeniedPage("/error?type=access-denied")
                 );
 
         return http.build();
+    }
+
+    @Bean
+    public LogoutHandler cookieClearingLogoutHandler() {
+        return new CookieClearingLogoutHandler(
+                "JSESSIONID",
+                "SESSION",
+                "KEYCLOAK_SESSION",
+                "KEYCLOAK_IDENTITY",
+                "KEYCLOAK_SESSION_LEGACY",
+                "KC_RESTART",
+                "AUTH_SESSION_ID",
+                "AUTH_SESSION_ID_LEGACY"
+        );
+    }
+
+    @Bean
+    public LogoutHandler keycloakLogoutHandler() {
+        return new KeycloakLogoutHandler();
+    }
+
+    private class KeycloakLogoutHandler implements LogoutHandler {
+
+        @Override
+        public void logout(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
+            logger.info("Iniciando proceso de logout completo con Keycloak");
+
+            clearKeycloakCookies(request, response);
+
+            SecurityContextLogoutHandler localLogoutHandler = new SecurityContextLogoutHandler();
+            localLogoutHandler.logout(request, response, authentication);
+
+            if (authentication != null && authentication.getPrincipal() instanceof OidcUser) {
+                OidcUser oidcUser = (OidcUser) authentication.getPrincipal();
+                String idToken = oidcUser.getIdToken().getTokenValue();
+
+                String postLogoutRedirectUri = appBaseUrl + "/login";
+
+                String logoutUrl = UriComponentsBuilder
+                        .fromUriString(keycloakLogoutUrl)
+                        .queryParam("id_token_hint", idToken)
+                        .queryParam("post_logout_redirect_uri", postLogoutRedirectUri)
+                        .build()
+                        .toUriString();
+
+                logger.info("Redirigiendo a Keycloak logout: {}", logoutUrl);
+
+                response.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+                response.setHeader("Pragma", "no-cache");
+                response.setHeader("Expires", "0");
+
+                try {
+                    response.sendRedirect(logoutUrl);
+                } catch (IOException e) {
+                    logger.error("Error al redireccionar al logout de Keycloak", e);
+                    redirectToLogin(response);
+                }
+            } else {
+                logger.info("No hay usuario OIDC para logout de Keycloak, solo logout local");
+                redirectToLogin(response);
+            }
+        }
+
+        private void redirectToLogin(HttpServletResponse response) {
+            try {
+                response.sendRedirect("/login?logout=true");
+            } catch (IOException e) {
+                logger.error("Error al redireccionar después del logout", e);
+            }
+        }
+
+        private void clearKeycloakCookies(HttpServletRequest request, HttpServletResponse response) {
+            String[] keycloakCookies = {
+                    "KEYCLOAK_SESSION",
+                    "KEYCLOAK_IDENTITY",
+                    "KEYCLOAK_SESSION_LEGACY",
+                    "KC_RESTART",
+                    "AUTH_SESSION_ID",
+                    "AUTH_SESSION_ID_LEGACY",
+                    "KEYCLOAK_LOCALE"
+            };
+
+            for (String cookieName : keycloakCookies) {
+                Cookie cookie = new Cookie(cookieName, null);
+                cookie.setPath("/");
+                cookie.setMaxAge(0);
+                cookie.setHttpOnly(true);
+                cookie.setSecure(false);
+                response.addCookie(cookie);
+                logger.debug("Limpiando cookie de Keycloak: {}", cookieName);
+            }
+
+            Cookie[] cookies = request.getCookies();
+            if (cookies != null) {
+                for (Cookie existingCookie : cookies) {
+                    if (existingCookie.getName().startsWith("KEYCLOAK") ||
+                            existingCookie.getName().startsWith("KC_") ||
+                            existingCookie.getName().startsWith("AUTH_")) {
+
+                        Cookie deleteCookie = new Cookie(existingCookie.getName(), null);
+                        deleteCookie.setPath("/");
+                        deleteCookie.setMaxAge(0);
+                        deleteCookie.setHttpOnly(true);
+                        deleteCookie.setSecure(false);
+                        response.addCookie(deleteCookie);
+                        logger.debug("Eliminando cookie existente: {}", existingCookie.getName());
+                    }
+                }
+            }
+        }
     }
 
     @Bean

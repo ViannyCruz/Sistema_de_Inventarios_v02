@@ -25,6 +25,13 @@ spring:
   thymeleaf:
     cache: false
 
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8080/realms/your-realm
+          jwk-set-uri: http://localhost:8080/realms/your-realm/protocol/openid-connect/certs
+
 # Logging configurado para pruebas
 logging:
   level:
@@ -32,10 +39,22 @@ logging:
     org.springframework.test: WARN
     org.hibernate: WARN
 
-app:
-  jwt:
-    secret: mySecretKey12345678901234567890123456789012345678901234567890123456789012345678901234567890
-    expiration: 86400000 # 24 horas
-admin:
-  username: admin
-  password: admin123
+#app:
+#  jwt:
+#    secret: mySecretKey12345678901234567890123456789012345678901234567890123456789012345678901234567890
+#    expiration: 86400000 # 24 horas
+#admin:
+#  username: admin
+#  password: admin123
+
+# Configuración específica para el mapeo de roles
+keycloak:
+  auth-server-url: http://localhost:8080
+  realm: your-realm
+  resource: your-client-id
+  public-client: true
+
+  # Configuración para mapeo de roles
+  role-mappings:
+    realm-access-roles: true
+    resource-access-roles: true

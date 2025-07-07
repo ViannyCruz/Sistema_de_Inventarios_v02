@@ -1,94 +1,107 @@
 package com.sistema_de_inventarios_v02.Controllers;
 
-import com.sistema_de_inventarios_v02.Util.JwtUtil;
-import com.sistema_de_inventarios_v02.dto.LoginRequestDTO;
-import com.sistema_de_inventarios_v02.dto.LoginResponseDTO;
-import com.sistema_de_inventarios_v02.model.Role;
-import com.sistema_de_inventarios_v02.service.TokenBlacklistService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.bind.annotation.*;
-import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
+import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@RestController
-@RequestMapping("/api/auth")
+import java.util.Collection;
+import java.util.Map;
+
+@Controller
 public class AuthController {
 
-    @Autowired
-    private JwtUtil jwtUtil;
+    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
 
-    @Autowired
-    private TokenBlacklistService tokenBlacklistService;
-
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-
-    @Value("${admin.username}")
-    private String adminUsername;
-
-    @Value("${admin.password}")
-    private String adminPassword;
-
-    @Value("${app.jwt.expiration}")
-    private int jwtExpiration;
-
-    @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequestDTO loginRequest) {
-        if (adminUsername.equals(loginRequest.getUsername()) &&
-                adminPassword.equals(loginRequest.getPassword())) {
-
-            String token = jwtUtil.generateToken(loginRequest.getUsername(), Role.ADMIN);
-            tokenBlacklistService.setActiveTokenForUser(loginRequest.getUsername(), token);
-
-            LoginResponseDTO response = new LoginResponseDTO(
-                    token,
-                    loginRequest.getUsername(),
-                    Role.ADMIN.name(),
-                    jwtExpiration
-            );
-
-            return ResponseEntity.ok(response);
-        } else {
-            return ResponseEntity.status(401).body("Credenciales inválidas");
-        }
+    @GetMapping("/login")
+    public String login() {
+        return "login";
     }
 
-    @PostMapping("/logout")
-    public ResponseEntity<?> logout(HttpServletRequest request) {
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            String token = authHeader.substring(7);
-            String username = jwtUtil.getUsernameFromToken(token);
+    @GetMapping("/dashboard")
+    public String dashboard(Authentication authentication, Model model) {
+        if (authentication != null && authentication.isAuthenticated()) {
+            logger.info("User authenticated: {}", authentication.getName());
 
-            tokenBlacklistService.removeActiveTokenForUser(username);
+            String username = authentication.getName();
+            Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
 
-            return ResponseEntity.ok("Logout exitoso");
+            logger.info("User: {} has authorities: {}", username, authorities);
+
+            model.addAttribute("username", username);
+            model.addAttribute("authorities", authorities);
+
+            String userRole = determineUserRole(authorities);
+            model.addAttribute("userRole", userRole);
+
+            if (authentication.getPrincipal() instanceof OidcUser) {
+                OidcUser oidcUser = (OidcUser) authentication.getPrincipal();
+                model.addAttribute("email", oidcUser.getEmail());
+                model.addAttribute("fullName", oidcUser.getFullName());
+
+                Map<String, Object> claims = oidcUser.getClaims();
+                model.addAttribute("givenName", claims.get("given_name"));
+                model.addAttribute("familyName", claims.get("family_name"));
+            }
+
+            logger.info("Redirecting user {} with role {} to dashboard", username, userRole);
+            return "index";
         }
-        return ResponseEntity.badRequest().body("Token no encontrado");
+
+        logger.warn("User not authenticated, redirecting to login");
+        return "redirect:/login";
     }
 
-    @GetMapping("/validate")
-    public ResponseEntity<?> validateToken(HttpServletRequest request) {
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            String token = authHeader.substring(7);
-
-            if (tokenBlacklistService.isBlacklisted(token)) {
-                return ResponseEntity.status(401).body("Token invalidado");
-            }
-
-            if (jwtUtil.validateToken(token)) {
-                String username = jwtUtil.getUsernameFromToken(token);
-                String role = jwtUtil.getRoleFromToken(token);
-
-                return ResponseEntity.ok(new LoginResponseDTO(
-                        token, username, role,
-                        jwtUtil.getExpirationDateFromToken(token).getTime() - System.currentTimeMillis()
-                ));
-            }
+    @GetMapping("/")
+    public String home(Authentication authentication) {
+        if (authentication != null && authentication.isAuthenticated()) {
+            logger.info("Authenticated user accessing home, redirecting to dashboard");
+            return "redirect:/dashboard";
         }
-        return ResponseEntity.status(401).body("Token inválido");
+        logger.info("Unauthenticated user accessing home, redirecting to login");
+        return "redirect:/login";
+    }
+
+    @GetMapping("/error")
+    public String error(Model model) {
+        model.addAttribute("errorMessage", "Ha ocurrido un error");
+        return "error";
+    }
+
+    @GetMapping("/access-denied")
+    public String accessDenied(Authentication authentication, Model model) {
+        if (authentication != null && authentication.isAuthenticated()) {
+            String username = authentication.getName();
+            String userRole = determineUserRole(authentication.getAuthorities());
+
+            model.addAttribute("username", username);
+            model.addAttribute("userRole", userRole);
+            model.addAttribute("errorMessage", "No tienes permisos para acceder a esta página");
+
+            logger.warn("Access denied for user: {} with role: {}", username, userRole);
+        }
+        return "access-denied";
+    }
+
+    private String determineUserRole(Collection<? extends GrantedAuthority> authorities) {
+        if (authorities.stream().anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"))) {
+            return "ADMIN";
+        } else if (authorities.stream().anyMatch(auth -> auth.getAuthority().equals("ROLE_USER"))) {
+            return "USER";
+        } else if (authorities.stream().anyMatch(auth -> auth.getAuthority().equals("ROLE_VISITOR"))) {
+            return "VISITOR";
+        }
+
+        logger.warn("No recognized role found in authorities: {}", authorities);
+        return "VISITOR";
+    }
+
+    private boolean hasRole(Collection<? extends GrantedAuthority> authorities, String role) {
+        return authorities.stream().anyMatch(auth -> auth.getAuthority().equals("ROLE_" + role));
     }
 }

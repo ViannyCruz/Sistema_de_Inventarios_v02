@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Sistema de Inventarios</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Arial', sans-serif;
+        }
+        .login-container {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+        .login-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .login-header h1 {
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+        .login-header p {
+            color: #666;
+            margin: 0;
+        }
+        .keycloak-btn {
+            background: #4a90e2;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            width: 100%;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+        .keycloak-btn:hover {
+            background: #357abd;
+            transform: translateY(-2px);
+        }
+        .alert {
+            margin-top: 1rem;
+        }
+        .user-info {
+            margin-top: 2rem;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .user-info h6 {
+            color: #495057;
+            margin-bottom: 0.5rem;
+        }
+        .user-info small {
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+<div class="login-container">
+    <div class="login-header">
+        <i class="fas fa-boxes fa-3x text-primary mb-3"></i>
+        <h1>Sistema de Inventarios</h1>
+        <p>Ingresa con tu cuenta para continuar</p>
+    </div>
+
+    <div th:if="${param.error}" class="alert alert-danger" role="alert">
+        <i class="fas fa-exclamation-triangle"></i>
+        Error de autenticación. Verifica tus credenciales.
+    </div>
+
+    <div th:if="${param.logout}" class="alert alert-success" role="alert">
+        <i class="fas fa-check-circle"></i>
+        Has cerrado sesión correctamente.
+    </div>
+
+    <form th:action="@{/oauth2/authorization/keycloak}" method="get">
+        <button type="submit" class="keycloak-btn">
+            <i class="fas fa-sign-in-alt me-2"></i>
+            Iniciar Sesión con Keycloak
+        </button>
+    </form>
+
+    <div class="user-info">
+        <h6><i class="fas fa-info-circle"></i> Usuarios de Prueba:</h6>
+        <small>
+            <strong>Admin:</strong> admin / [tu_password]<br>
+            <strong>Usuario:</strong> usuario / [tu_password]<br>
+            <strong>Visitante:</strong> visitante / [tu_password]
+        </small>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

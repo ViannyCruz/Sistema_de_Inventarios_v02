@@ -8,6 +8,7 @@ import com.sistema_de_inventarios_v02.repository.ProductRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,7 +27,7 @@ public class ProductService {
         this.productRepository = productRepository;
     }
 
-    // CREAR PRODUCTO
+    @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
     public ProductResponseDTO createProduct(CreateProductDTO createProductDTO) {
         if (productRepository.existsByNameIgnoreCase(createProductDTO.getName())) {
             throw new DuplicateProductException("Ya existe un producto con el nombre: " + createProductDTO.getName());
@@ -37,7 +38,6 @@ public class ProductService {
         return convertToResponseDTO(savedProduct);
     }
 
-    // OBTENER TODOS LOS PRODUCTOS (SUMMARY)
     @Transactional(readOnly = true)
     public List<ProductSummaryDTO> getAllProductsSummary() {
         List<Product> products = productRepository.findAll();
@@ -46,21 +46,19 @@ public class ProductService {
                 .collect(Collectors.toList());
     }
 
-    // OBTENER TODOS LOS PRODUCTOS PAGINADOS (SUMMARY)
     @Transactional(readOnly = true)
     public Page<ProductSummaryDTO> getAllProductsPaginated(Pageable pageable) {
         Page<Product> productsPage = productRepository.findAll(pageable);
         return productsPage.map(this::convertToSummaryDTO);
     }
 
-    // OBTENER PRODUCTOS CON FILTROS
     @Transactional(readOnly = true)
     public Page<ProductSummaryDTO> getProductsWithFilters(String category, String name, Pageable pageable) {
         Page<Product> products = productRepository.findByCategoryAndName(category, name, pageable);
         return products.map(this::convertToSummaryDTO);
     }
 
-    // OBTENER PRODUCTO POR ID (COMPLETO)
+    @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
     @Transactional(readOnly = true)
     public ProductResponseDTO getProductById(Long id) {
         Product product = productRepository.findById(id)
@@ -68,12 +66,11 @@ public class ProductService {
         return convertToResponseDTO(product);
     }
 
-    // ACTUALIZAR PRODUCTO
+    @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
     public ProductResponseDTO updateProduct(Long id, UpdateProductDTO updateProductDTO) {
         Product existingProduct = productRepository.findById(id)
                 .orElseThrow(() -> new ProductNotFoundException("Producto no encontrado con ID: " + id));
 
-        // Verificar nombre duplicado solo si se está cambiando
         if (updateProductDTO.getName() != null &&
                 !existingProduct.getName().equalsIgnoreCase(updateProductDTO.getName()) &&
                 productRepository.existsByNameIgnoreCase(updateProductDTO.getName())) {
@@ -85,7 +82,7 @@ public class ProductService {
         return convertToResponseDTO(updatedProduct);
     }
 
-    // ELIMINAR PRODUCTO
+    @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
     public void deleteProduct(Long id) {
         if (!productRepository.existsById(id)) {
             throw new ProductNotFoundException("Producto no encontrado con ID: " + id);
@@ -93,7 +90,6 @@ public class ProductService {
         productRepository.deleteById(id);
     }
 
-    // BUSCAR PRODUCTOS POR NOMBRE
     @Transactional(readOnly = true)
     public List<ProductSummaryDTO> searchProductsByName(String name) {
         List<Product> products = productRepository.findByNameContainingIgnoreCase(name);
@@ -102,7 +98,6 @@ public class ProductService {
                 .collect(Collectors.toList());
     }
 
-    // OBTENER PRODUCTOS POR CATEGORÍA
     @Transactional(readOnly = true)
     public List<ProductSummaryDTO> getProductsByCategory(String category) {
         List<Product> products = productRepository.findByCategoryIgnoreCase(category);
@@ -111,7 +106,7 @@ public class ProductService {
                 .collect(Collectors.toList());
     }
 
-    // OBTENER PRODUCTOS CON STOCK BAJO
+    @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
     @Transactional(readOnly = true)
     public List<ProductResponseDTO> getProductsWithLowStock() {
         List<Product> products = productRepository.findProductsWithLowStock();
@@ -120,7 +115,7 @@ public class ProductService {
                 .collect(Collectors.toList());
     }
 
-    // OBTENER PRODUCTOS SIN STOCK
+    @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
     @Transactional(readOnly = true)
     public List<ProductResponseDTO> getProductsOutOfStock() {
         List<Product> products = productRepository.findProductsOutOfStock();
@@ -129,7 +124,7 @@ public class ProductService {
                 .collect(Collectors.toList());
     }
 
-    // ACTUALIZAR STOCK DE PRODUCTO
+    @PreAuthorize("hasRole('ADMIN')")
     public ProductResponseDTO updateProductStock(Long id, StockUpdateDTO stockUpdateDTO) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new ProductNotFoundException("Producto no encontrado con ID: " + id));
@@ -139,13 +134,11 @@ public class ProductService {
         return convertToResponseDTO(updatedProduct);
     }
 
-    // OBTENER TODAS LAS CATEGORÍAS
     @Transactional(readOnly = true)
     public List<String> getAllCategories() {
         return productRepository.findAllCategories();
     }
 
-    // OBTENER PRODUCTOS POR RANGO DE PRECIO
     @Transactional(readOnly = true)
     public List<ProductSummaryDTO> getProductsByPriceRange(Double minPrice, Double maxPrice) {
         List<Product> products = productRepository.findByPriceBetween(minPrice, maxPrice);
@@ -154,7 +147,6 @@ public class ProductService {
                 .collect(Collectors.toList());
     }
 
-    // OBTENER ESTADÍSTICAS DE PRODUCTOS
     @Transactional(readOnly = true)
     public Map<String, Object> getProductStats() {
         List<Product> allProducts = productRepository.findAll();
@@ -171,9 +163,6 @@ public class ProductService {
         );
     }
 
-    // ===== MÉTODOS DE CONVERSIÓN =====
-
-    // Convertir CreateProductDTO a Entity
     private Product convertCreateDTOToEntity(CreateProductDTO createDTO) {
         return new Product(
                 createDTO.getName(),
@@ -185,7 +174,6 @@ public class ProductService {
         );
     }
 
-    // Actualizar Entity desde UpdateProductDTO
     private void updateEntityFromUpdateDTO(Product product, UpdateProductDTO updateDTO) {
         if (updateDTO.getName() != null) {
             product.setName(updateDTO.getName());
@@ -207,7 +195,6 @@ public class ProductService {
         }
     }
 
-    // Convertir Entity a ProductResponseDTO
     private ProductResponseDTO convertToResponseDTO(Product product) {
         return new ProductResponseDTO(
                 product.getId(),
@@ -223,7 +210,6 @@ public class ProductService {
         );
     }
 
-    // Convertir Entity a ProductSummaryDTO
     private ProductSummaryDTO convertToSummaryDTO(Product product) {
         return new ProductSummaryDTO(
                 product.getId(),
@@ -235,7 +221,6 @@ public class ProductService {
         );
     }
 
-    // Calcular estado del stock
     private String calculateStockStatus(Product product) {
         if (product.isOutOfStock()) {
             return "OUT_OF_STOCK";

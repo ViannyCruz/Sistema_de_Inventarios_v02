@@ -51,7 +51,7 @@ public class Product {
         this.category = category;
         this.price = price;
         this.stock = stock;
-        this.minimumStock = minimumStock;
+        this.minimumStock = 0;
     }
 
     public Product(Long id, String name, String description, String category, BigDecimal price, Integer stock, Integer minimumStock) {
@@ -61,7 +61,7 @@ public class Product {
         this.category = category;
         this.price = price;
         this.stock = stock;
-        this.minimumStock = minimumStock;
+        this.minimumStock = 0;
     }
 
     public Long getId() {

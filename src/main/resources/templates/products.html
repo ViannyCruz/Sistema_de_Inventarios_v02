@@ -99,9 +99,14 @@
                         <h6 class="op-7 mb-2">Administra el inventario de productos</h6>
                     </div>
                     <div class="ms-md-auto py-2 py-md-0">
-                        <button class="btn btn-primary btn-round" data-bs-toggle="modal" data-bs-target="#addProductModal">
-                            <i class="fas fa-plus"></i> Agregar Producto
-                        </button>
+                        <div th:if="${userRole == 'ADMIN' or userRole == 'USER'}">
+                            <button class="btn btn-primary btn-round" onclick="showAddProductModal()">
+                                <i class="fas fa-plus"></i> Agregar Producto
+                            </button>
+                        </div>
+                        <div th:if="${userRole == 'VISITOR'}" class="text-muted">
+                            <small><i class="fas fa-eye me-1"></i>Solo visualización</small>
+                        </div>
                     </div>
                 </div>
 
@@ -386,12 +391,12 @@
 
             if (products.length === 0) {
                 tableBody.append(`
-                <tr>
-                    <td colspan="7" class="text-center text-muted">
-                        ${isSearching ? 'No se encontraron productos con ese criterio de búsqueda' : 'No hay productos para mostrar'}
-                    </td>
-                </tr>
-            `);
+            <tr>
+                <td colspan="7" class="text-center text-muted">
+                    ${isSearching ? 'No se encontraron productos con ese criterio de búsqueda' : 'No hay productos para mostrar'}
+                </td>
+            </tr>
+        `);
                 return;
             }
 
@@ -402,24 +407,32 @@
                         '<span class="badge badge-warning">Bajo stock</span>' :
                         '<span class="badge badge-success">Disponible</span>');
 
+                // Solo mostrar botones de acción si el usuario tiene permisos
+                let actionButtons = '';
+                if (window.userRole === 'ADMIN' || window.userRole === 'USER') {
+                    actionButtons = `
+                    <button class="btn btn-icon btn-round btn-info btn-sm me-1" onclick="editProduct(${product.id})">
+                        <i class="fas fa-edit fa-xs"></i>
+                    </button>
+                    <button class="btn btn-icon btn-round btn-danger btn-sm" onclick="deleteProduct(${product.id})">
+                        <i class="fas fa-trash fa-xs"></i>
+                    </button>
+                `;
+                } else {
+                    actionButtons = '<span class="text-muted">Solo lectura</span>';
+                }
+
                 const row = `
-                <tr>
-                    <td>${product.id}</td>
-                    <td>${product.name}</td>
-                    <td>${product.category}</td>
-                    <td>$${product.price.toFixed(2)}</td>
-                    <td>${product.stock}</td>
-                    <td>${status}</td>
-                    <td>
-                        <button class="btn btn-icon btn-round btn-info btn-sm me-1" onclick="editProduct(${product.id})">
-                            <i class="fas fa-edit fa-xs"></i>
-                        </button>
-                        <button class="btn btn-icon btn-round btn-danger btn-sm" onclick="deleteProduct(${product.id})">
-                            <i class="fas fa-trash fa-xs"></i>
-                        </button>
-                    </td>
-                </tr>
-            `;
+            <tr>
+                <td>${product.id}</td>
+                <td>${product.name}</td>
+                <td>${product.category}</td>
+                <td>$${product.price.toFixed(2)}</td>
+                <td>${product.stock}</td>
+                <td>${status}</td>
+                <td>${actionButtons}</td>
+            </tr>
+        `;
                 tableBody.append(row);
             });
         }
@@ -471,6 +484,36 @@
             });
         }
 
+        // Función para mostrar el modal de agregar producto
+        function showAddProductModal() {
+            $('#productForm')[0].reset();
+            $('#productId').val('');
+            $('#modalTitle').text('Agregar Nuevo Producto');
+
+            // Limpiar cualquier mensaje de ayuda previo
+            $('#stockHelpUser').remove();
+            $('#stockHelp').remove();
+
+            // Configurar campos según el rol
+            if (!window.isAdmin) {
+                $('#stock').val(0);
+                $('#stock').prop('readonly', true);
+                $('#stock').addClass('bg-light');
+
+                $('#stock').after('<small id="stockHelpUser" class="form-text text-muted">Los productos nuevos comenzarán con stock 0. Un administrador podrá ajustar el stock posteriormente.</small>');
+            } else {
+                $('#stock').prop('readonly', false);
+                $('#stock').removeClass('bg-light');
+            }
+
+            // Resetear el selector de categorías
+            $('#freeCategoryInput').hide();
+            $('#category').show();
+            $('#btnToggleCategory').html('<i class="fas fa-edit"></i>');
+
+            $('#addProductModal').modal('show');
+        }
+
         function saveProduct() {
             const productId = $('#productId').val();
             const category = $('#freeCategoryInput').is(':visible') ?
@@ -490,8 +533,12 @@
                 minimumStock: 0
             };
 
-            if (window.isAdmin) {
-                productData.stock = parseInt($('#stock').val());
+            // Solo agregar stock si el usuario es ADMIN o si estamos editando un producto existente
+            if (window.isAdmin || productId) {
+                productData.stock = parseInt($('#stock').val()) || 0;
+            } else {
+                // Para usuarios USER creando productos nuevos, establecer stock en 0
+                productData.stock = 0;
             }
 
             const url = productId ? `/api/products/${productId}` : '/api/products';
@@ -504,7 +551,15 @@
                 data: JSON.stringify(productData),
                 success: function(response) {
                     $('#addProductModal').modal('hide');
-                    swal('Éxito', productId ? 'Producto actualizado correctamente' : 'Producto creado correctamente', 'success');
+
+                    // Mensaje diferente para usuarios USER vs ADMIN
+                    let message = productId ? 'Producto actualizado correctamente' : 'Producto creado correctamente';
+                    if (!window.isAdmin && !productId) {
+                        message += '. Stock inicial establecido en 0 - contacte al administrador para ajustar el stock.';
+                    }
+
+                    swal('Éxito', message, 'success');
+
                     if ($('#globalSearchInput').val().trim()) {
                         searchProducts($('#globalSearchInput').val().trim());
                     } else {
@@ -530,16 +585,18 @@
                     $('#stock').val(product.stock);
                     $('#description').val(product.description);
 
+                    // Limpiar mensajes de ayuda previos
+                    $('#stockHelpUser').remove();
+                    $('#stockHelp').remove();
+
+                    // Configurar el campo stock según el rol
                     if (!window.isAdmin) {
                         $('#stock').prop('readonly', true);
                         $('#stock').addClass('bg-light');
-                        if ($('#stockHelp').length === 0) {
-                            $('#stock').after('<small id="stockHelp" class="form-text text-muted">Solo los administradores pueden modificar el stock</small>');
-                        }
+                        $('#stock').after('<small id="stockHelp" class="form-text text-muted">Solo los administradores pueden modificar el stock</small>');
                     } else {
                         $('#stock').prop('readonly', false);
                         $('#stock').removeClass('bg-light');
-                        $('#stockHelp').remove();
                     }
 
                     const categoryOption = $(`#category option[value="${product.category}"]`);
@@ -609,6 +666,7 @@
             });
         }
 
+        // Event Listeners para paginación
         $('#firstPageBtn').click(() => goToPage(0));
         $('#prevPageBtn').click(() => goToPage(currentPage - 1));
         $('#nextPageBtn').click(() => goToPage(currentPage + 1));
@@ -650,9 +708,16 @@
             $('#productId').val('');
             $('#modalTitle').text('Agregar Nuevo Producto');
 
+            // Limpiar configuraciones específicas de rol
             $('#stock').prop('readonly', false);
             $('#stock').removeClass('bg-light');
+            $('#stockHelpUser').remove();
             $('#stockHelp').remove();
+
+            // Resetear selector de categorías
+            $('#freeCategoryInput').hide();
+            $('#category').show();
+            $('#btnToggleCategory').html('<i class="fas fa-edit"></i>');
         });
 
         $('#btnToggleCategory').click(function() {
@@ -681,8 +746,13 @@
             }
         });
 
+        $('#addProductBtn').click(function() {
+            showAddProductModal();
+        });
+
         window.editProduct = editProduct;
         window.deleteProduct = deleteProduct;
+        window.showAddProductModal = showAddProductModal;
     });
 </script>
 </body>

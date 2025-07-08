@@ -57,8 +57,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/debug/**").permitAll()
 
                         .requestMatchers("/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/productos/crear", "/productos/editar/**", "/productos/eliminar/**").hasRole("ADMIN")
-                        .requestMatchers("/categorias/crear", "/categorias/editar/**", "/categorias/eliminar/**").hasRole("ADMIN")
+                        .requestMatchers("/productos/crear", "/productos/editar/**", "/productos/eliminar/**").hasAnyRole("ADMIN", "USER")
+                        .requestMatchers("/categorias/crear", "/categorias/editar/**", "/categorias/eliminar/**").hasAnyRole("ADMIN", "USER")
                         .requestMatchers("/usuarios/**").hasRole("ADMIN")
                         .requestMatchers("/reportes/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")

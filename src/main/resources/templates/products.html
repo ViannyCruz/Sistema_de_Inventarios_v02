@@ -84,11 +84,9 @@
 </head>
 <body>
 <div class="wrapper">
-    <!-- Sidebar (igual que en index.html) -->
     <div th:replace="~{index :: sidebar}"></div>
 
     <div class="main-panel">
-        <!-- Header (igual que en index.html) -->
         <div th:replace="~{index :: main-header}"></div>
 
         <div class="container">
@@ -407,7 +405,6 @@
                         '<span class="badge badge-warning">Bajo stock</span>' :
                         '<span class="badge badge-success">Disponible</span>');
 
-                // Solo mostrar botones de acción si el usuario tiene permisos
                 let actionButtons = '';
                 if (window.userRole === 'ADMIN' || window.userRole === 'USER') {
                     actionButtons = `
@@ -484,17 +481,14 @@
             });
         }
 
-        // Función para mostrar el modal de agregar producto
         function showAddProductModal() {
             $('#productForm')[0].reset();
             $('#productId').val('');
             $('#modalTitle').text('Agregar Nuevo Producto');
 
-            // Limpiar cualquier mensaje de ayuda previo
             $('#stockHelpUser').remove();
             $('#stockHelp').remove();
 
-            // Configurar campos según el rol
             if (!window.isAdmin) {
                 $('#stock').val(0);
                 $('#stock').prop('readonly', true);
@@ -506,7 +500,6 @@
                 $('#stock').removeClass('bg-light');
             }
 
-            // Resetear el selector de categorías
             $('#freeCategoryInput').hide();
             $('#category').show();
             $('#btnToggleCategory').html('<i class="fas fa-edit"></i>');
@@ -533,11 +526,9 @@
                 minimumStock: 0
             };
 
-            // Solo agregar stock si el usuario es ADMIN o si estamos editando un producto existente
             if (window.isAdmin || productId) {
                 productData.stock = parseInt($('#stock').val()) || 0;
             } else {
-                // Para usuarios USER creando productos nuevos, establecer stock en 0
                 productData.stock = 0;
             }
 
@@ -552,7 +543,6 @@
                 success: function(response) {
                     $('#addProductModal').modal('hide');
 
-                    // Mensaje diferente para usuarios USER vs ADMIN
                     let message = productId ? 'Producto actualizado correctamente' : 'Producto creado correctamente';
                     if (!window.isAdmin && !productId) {
                         message += '. Stock inicial establecido en 0 - contacte al administrador para ajustar el stock.';
@@ -585,11 +575,9 @@
                     $('#stock').val(product.stock);
                     $('#description').val(product.description);
 
-                    // Limpiar mensajes de ayuda previos
                     $('#stockHelpUser').remove();
                     $('#stockHelp').remove();
 
-                    // Configurar el campo stock según el rol
                     if (!window.isAdmin) {
                         $('#stock').prop('readonly', true);
                         $('#stock').addClass('bg-light');
@@ -666,7 +654,6 @@
             });
         }
 
-        // Event Listeners para paginación
         $('#firstPageBtn').click(() => goToPage(0));
         $('#prevPageBtn').click(() => goToPage(currentPage - 1));
         $('#nextPageBtn').click(() => goToPage(currentPage + 1));
@@ -708,13 +695,11 @@
             $('#productId').val('');
             $('#modalTitle').text('Agregar Nuevo Producto');
 
-            // Limpiar configuraciones específicas de rol
             $('#stock').prop('readonly', false);
             $('#stock').removeClass('bg-light');
             $('#stockHelpUser').remove();
             $('#stockHelp').remove();
 
-            // Resetear selector de categorías
             $('#freeCategoryInput').hide();
             $('#category').show();
             $('#btnToggleCategory').html('<i class="fas fa-edit"></i>');

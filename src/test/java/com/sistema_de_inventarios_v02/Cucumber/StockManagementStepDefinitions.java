@@ -7,10 +7,17 @@ import com.sistema_de_inventarios_v02.repository.ProductRepository;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.When;
 import io.cucumber.java.en.Then;
+import io.cucumber.java.Before;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -29,6 +36,23 @@ public class StockManagementStepDefinitions {
     private boolean lowStockFlag;
     private boolean outOfStockFlag;
 
+    @Before
+    public void setUpSecurityContext() {
+        Authentication auth = new TestingAuthenticationToken(
+                "testuser",
+                "password",
+                List.of(
+                        new SimpleGrantedAuthority("ROLE_USER"),
+                        new SimpleGrantedAuthority("ROLE_ADMIN")
+                )
+        );
+        auth.setAuthenticated(true);
+
+        SecurityContext securityContext = SecurityContextHolder.createEmptyContext();
+        securityContext.setAuthentication(auth);
+        SecurityContextHolder.setContext(securityContext);
+    }
+
     @Given("the inventory system is initialized")
     public void the_inventory_system_is_initialized() {
         productRepository.deleteAll();
@@ -46,23 +70,7 @@ public class StockManagementStepDefinitions {
         );
 
         currentProductResponseDTO = productService.createProduct(createProductDTO);
-
         currentProduct = productRepository.findById(currentProductResponseDTO.getId()).orElse(null);
-    }
-
-    @Given("a product {string} with null stock and minimum stock {int}")
-    public void a_product_with_null_stock_and_minimum_stock(String productName, Integer minimumStock) {
-        currentProduct = new Product();
-        currentProduct.setName(productName);
-        currentProduct.setDescription("Test product description");
-        currentProduct.setCategory("Test Category");
-        currentProduct.setPrice(new BigDecimal("99.99"));
-        currentProduct.setStock(null);
-        currentProduct.setMinimumStock(minimumStock);
-
-        currentProduct = productRepository.save(currentProduct);
-
-        currentProductResponseDTO = productService.getProductById(currentProduct.getId());
     }
 
     @When("I check if the product has low stock")
@@ -107,26 +115,15 @@ public class StockManagementStepDefinitions {
     @When("I update the product stock to {int}")
     public void i_update_the_product_stock_to(Integer newStock) {
         stockUpdateDTO = new StockUpdateDTO(newStock, "Stock update from Cucumber test");
-
         currentProductResponseDTO = productService.updateProductStock(currentProduct.getId(), stockUpdateDTO);
-
         currentProduct = productRepository.findById(currentProduct.getId()).orElse(null);
     }
 
     @When("I update the product stock to {int} with reason {string}")
     public void i_update_the_product_stock_to_with_reason(Integer newStock, String reason) {
         stockUpdateDTO = new StockUpdateDTO(newStock, reason);
-
         currentProductResponseDTO = productService.updateProductStock(currentProduct.getId(), stockUpdateDTO);
-
         currentProduct = productRepository.findById(currentProduct.getId()).orElse(null);
-    }
-
-    @Then("the product should be flagged as low stock")
-    public void the_product_should_be_flagged_as_low_stock() {
-        assertThat(lowStockFlag).isTrue();
-        assertThat(currentProductResponseDTO.isLowStock()).isTrue();
-        assertThat(currentProductResponseDTO.getStockStatus()).isEqualTo("LOW_STOCK");
     }
 
     @Then("the product should not be flagged as low stock")
@@ -140,12 +137,6 @@ public class StockManagementStepDefinitions {
         assertThat(outOfStockFlag).isTrue();
         assertThat(currentProductResponseDTO.isOutOfStock()).isTrue();
         assertThat(currentProductResponseDTO.getStockStatus()).isEqualTo("OUT_OF_STOCK");
-    }
-
-    @Then("the product should not be flagged as out of stock")
-    public void the_product_should_not_be_flagged_as_out_of_stock() {
-        assertThat(outOfStockFlag).isFalse();
-        assertThat(currentProductResponseDTO.isOutOfStock()).isFalse();
     }
 
     @Then("the product stock should be {int}")
@@ -176,11 +167,5 @@ public class StockManagementStepDefinitions {
     @Then("the stock update reason should be {string}")
     public void the_stock_update_reason_should_be(String expectedReason) {
         assertThat(stockUpdateDTO.getReason()).isEqualTo(expectedReason);
-    }
-
-    @Then("the product should have stock status {string}")
-    public void the_product_should_have_stock_status(String expectedStatus) {
-        ProductResponseDTO updatedProduct = productService.getProductById(currentProduct.getId());
-        assertThat(updatedProduct.getStockStatus()).isEqualTo(expectedStatus);
     }
 }

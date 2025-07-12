@@ -27,7 +27,6 @@ public class ProductService {
         this.productRepository = productRepository;
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
     public ProductResponseDTO createProduct(CreateProductDTO createProductDTO) {
         if (productRepository.existsByNameIgnoreCase(createProductDTO.getName())) {
             throw new DuplicateProductException("Ya existe un producto con el nombre: " + createProductDTO.getName());
@@ -58,7 +57,6 @@ public class ProductService {
         return products.map(this::convertToSummaryDTO);
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
     @Transactional(readOnly = true)
     public ProductResponseDTO getProductById(Long id) {
         Product product = productRepository.findById(id)
@@ -66,7 +64,6 @@ public class ProductService {
         return convertToResponseDTO(product);
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
     public ProductResponseDTO updateProduct(Long id, UpdateProductDTO updateProductDTO) {
         Product existingProduct = productRepository.findById(id)
                 .orElseThrow(() -> new ProductNotFoundException("Producto no encontrado con ID: " + id));
@@ -82,7 +79,6 @@ public class ProductService {
         return convertToResponseDTO(updatedProduct);
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
     public void deleteProduct(Long id) {
         if (!productRepository.existsById(id)) {
             throw new ProductNotFoundException("Producto no encontrado con ID: " + id);
@@ -106,7 +102,6 @@ public class ProductService {
                 .collect(Collectors.toList());
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
     @Transactional(readOnly = true)
     public List<ProductResponseDTO> getProductsWithLowStock() {
         List<Product> products = productRepository.findProductsWithLowStock();
@@ -115,7 +110,6 @@ public class ProductService {
                 .collect(Collectors.toList());
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
     @Transactional(readOnly = true)
     public List<ProductResponseDTO> getProductsOutOfStock() {
         List<Product> products = productRepository.findProductsOutOfStock();
@@ -124,7 +118,6 @@ public class ProductService {
                 .collect(Collectors.toList());
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
     public ProductResponseDTO updateProductStock(Long id, StockUpdateDTO stockUpdateDTO) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new ProductNotFoundException("Producto no encontrado con ID: " + id));

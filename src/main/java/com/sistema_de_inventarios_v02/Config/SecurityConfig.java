@@ -1,5 +1,7 @@
 package com.sistema_de_inventarios_v02.Config;
 
+import com.sistema_de_inventarios_v02.jwt.JwtAuthenticationFilter;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -10,6 +12,8 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.authority.mapping.GrantedAuthoritiesMapper;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.core.oidc.OidcIdToken;
 import org.springframework.security.oauth2.core.oidc.user.OidcUserAuthority;
 import org.springframework.security.oauth2.core.user.OAuth2UserAuthority;
@@ -17,6 +21,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 import org.springframework.security.web.authentication.logout.CookieClearingLogoutHandler;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
@@ -38,11 +43,19 @@ public class SecurityConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(SecurityConfig.class);
 
+    @Autowired
+    private JwtAuthenticationFilter jwtAuthenticationFilter;
+
     @Value("${keycloak.logout-url:http://localhost:8080/realms/inventory-realm/protocol/openid-connect/logout}")
     private String keycloakLogoutUrl;
 
     @Value("${app.base-url:http://localhost:8081}")
     private String appBaseUrl;
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -53,8 +66,14 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authz -> authz
                         .requestMatchers("/css/**", "/js/**", "/images/**", "/assets/**", "/favicon.ico").permitAll()
                         .requestMatchers("/static/**", "/webjars/**", "/resources/**").permitAll()
+
                         .requestMatchers("/login", "/logout", "/custom-logout", "/error").permitAll()
+
+                        .requestMatchers("/api/auth/**").permitAll()
+
                         .requestMatchers("/api/debug/**").permitAll()
+
+                        .requestMatchers("/api/inventory/**").authenticated()
 
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .requestMatchers("/productos/crear", "/productos/editar/**", "/productos/eliminar/**").hasAnyRole("ADMIN", "USER")
@@ -105,6 +124,8 @@ public class SecurityConfig {
                 .exceptionHandling(exceptions -> exceptions
                         .accessDeniedPage("/error?type=access-denied")
                 );
+
+        http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

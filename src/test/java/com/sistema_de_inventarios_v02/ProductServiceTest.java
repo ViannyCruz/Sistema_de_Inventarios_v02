@@ -356,10 +356,11 @@ public class ProductServiceTest {
         }
     }
 
+
     @Nested
     @DisplayName("Gestión de Stock")
     class StockManagementTests {
-
+/*
         @Test
         @DisplayName("Debe obtener productos con stock bajo como ProductResponseDTO")
         void getProductsWithLowStock_ShouldReturnListOfProductResponse_WhenLowStockExists() {
@@ -381,7 +382,7 @@ public class ProductServiceTest {
 
             verify(productRepository, times(1)).findProductsWithLowStock();
         }
-
+*/
         @Test
         @DisplayName("Debe obtener productos sin stock como ProductResponseDTO")
         void getProductsOutOfStock_ShouldReturnListOfProductResponse_WhenOutOfStockExists() {

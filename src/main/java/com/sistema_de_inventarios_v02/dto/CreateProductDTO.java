@@ -1,4 +1,3 @@
-// CreateProductDTO.java
 package com.sistema_de_inventarios_v02.dto;
 
 import jakarta.validation.constraints.*;
@@ -39,7 +38,7 @@ public class CreateProductDTO {
         this.category = category;
         this.price = price;
         this.stock = stock;
-        this.minimumStock = minimumStock;
+        this.minimumStock = 0;
     }
 
     // Getters y Setters

@@ -77,14 +77,16 @@
             background: white;
         }
     </style>
+    <script th:inline="javascript">
+        window.userRole = /*[[${userRole}]]*/ 'VISITOR';
+        window.isAdmin = /*[[${isAdmin}]]*/ false;
+    </script>
 </head>
 <body>
 <div class="wrapper">
-    <!-- Sidebar (igual que en index.html) -->
     <div th:replace="~{index :: sidebar}"></div>
 
     <div class="main-panel">
-        <!-- Header (igual que en index.html) -->
         <div th:replace="~{index :: main-header}"></div>
 
         <div class="container">
@@ -95,9 +97,14 @@
                         <h6 class="op-7 mb-2">Administra el inventario de productos</h6>
                     </div>
                     <div class="ms-md-auto py-2 py-md-0">
-                        <button class="btn btn-primary btn-round" data-bs-toggle="modal" data-bs-target="#addProductModal">
-                            <i class="fas fa-plus"></i> Agregar Producto
-                        </button>
+                        <div th:if="${userRole == 'ADMIN' or userRole == 'USER'}">
+                            <button class="btn btn-primary btn-round" onclick="showAddProductModal()">
+                                <i class="fas fa-plus"></i> Agregar Producto
+                            </button>
+                        </div>
+                        <div th:if="${userRole == 'VISITOR'}" class="text-muted">
+                            <small><i class="fas fa-eye me-1"></i>Solo visualización</small>
+                        </div>
                     </div>
                 </div>
 
@@ -260,6 +267,9 @@
                             <div class="form-group">
                                 <label for="stock">Stock</label>
                                 <input type="number" class="form-control" id="stock" required>
+                                <small class="form-text text-muted" id="stockHelp" style="display: none;">
+                                    Solo los administradores pueden modificar el stock
+                                </small>
                             </div>
                         </div>
                     </div>
@@ -297,10 +307,8 @@
 <!-- Script para manejar productos con paginación -->
 <script>
     $(document).ready(function() {
-        // Deshabilitamos DataTables ya que manejamos la paginación manualmente
-        const table = $('#productsTable');
 
-        // Variables de paginación
+        const table = $('#productsTable');
         let currentPage = 0;
         let pageSize = 10;
         let totalElements = 0;
@@ -311,7 +319,341 @@
         loadCategories();
         loadProducts();
 
-        // Event listeners para paginación
+        function goToPage(pageNumber) {
+            if (pageNumber < 0 || pageNumber >= totalPages || pageNumber === currentPage) {
+                return;
+            }
+            currentPage = pageNumber;
+            if (isSearching) {
+                searchProducts(searchTerm);
+            } else {
+                loadProducts();
+            }
+        }
+
+        function loadProducts() {
+            const url = `/api/products/paginated?page=${currentPage}&size=${pageSize}&sortBy=name&sortDir=asc`;
+
+            $.ajax({
+                url: url,
+                type: 'GET',
+                success: function(response) {
+                    renderProducts(response.content);
+                    updatePaginationInfo(response);
+                },
+                error: function(error) {
+                    console.error('Error al cargar productos:', error);
+                    swal('Error', 'No se pudieron cargar los productos', 'error');
+                }
+            });
+        }
+
+        function searchProducts(term) {
+            if (!term) {
+                isSearching = false;
+                loadProducts();
+                return;
+            }
+
+            $.ajax({
+                url: `/api/products/search?name=${encodeURIComponent(term)}`,
+                type: 'GET',
+                success: function(products) {
+                    const startIndex = currentPage * pageSize;
+                    const endIndex = startIndex + pageSize;
+                    const paginatedProducts = products.slice(startIndex, endIndex);
+
+                    renderProducts(paginatedProducts);
+
+                    const mockResponse = {
+                        content: paginatedProducts,
+                        totalElements: products.length,
+                        totalPages: Math.ceil(products.length / pageSize),
+                        number: currentPage,
+                        size: pageSize,
+                        numberOfElements: paginatedProducts.length
+                    };
+
+                    updatePaginationInfo(mockResponse);
+                },
+                error: function(error) {
+                    console.error('Error al buscar productos:', error);
+                    swal('Error', 'Error en la búsqueda de productos', 'error');
+                }
+            });
+        }
+
+        function renderProducts(products) {
+            const tableBody = $('#productsTableBody');
+            tableBody.empty();
+
+            if (products.length === 0) {
+                tableBody.append(`
+            <tr>
+                <td colspan="7" class="text-center text-muted">
+                    ${isSearching ? 'No se encontraron productos con ese criterio de búsqueda' : 'No hay productos para mostrar'}
+                </td>
+            </tr>
+        `);
+                return;
+            }
+
+            products.forEach(product => {
+                const status = product.stock <= 0 ?
+                    '<span class="badge badge-danger">Agotado</span>' :
+                    (product.stock < 10 ?
+                        '<span class="badge badge-warning">Bajo stock</span>' :
+                        '<span class="badge badge-success">Disponible</span>');
+
+                let actionButtons = '';
+                if (window.userRole === 'ADMIN' || window.userRole === 'USER') {
+                    actionButtons = `
+                    <button class="btn btn-icon btn-round btn-info btn-sm me-1" onclick="editProduct(${product.id})">
+                        <i class="fas fa-edit fa-xs"></i>
+                    </button>
+                    <button class="btn btn-icon btn-round btn-danger btn-sm" onclick="deleteProduct(${product.id})">
+                        <i class="fas fa-trash fa-xs"></i>
+                    </button>
+                `;
+                } else {
+                    actionButtons = '<span class="text-muted">Solo lectura</span>';
+                }
+
+                const row = `
+            <tr>
+                <td>${product.id}</td>
+                <td>${product.name}</td>
+                <td>${product.category}</td>
+                <td>$${product.price.toFixed(2)}</td>
+                <td>${product.stock}</td>
+                <td>${status}</td>
+                <td>${actionButtons}</td>
+            </tr>
+        `;
+                tableBody.append(row);
+            });
+        }
+
+        function updatePaginationInfo(response) {
+            totalElements = response.totalElements;
+            totalPages = response.totalPages;
+            currentPage = response.number;
+
+            const startItem = totalElements > 0 ? (currentPage * pageSize) + 1 : 0;
+            const endItem = Math.min((currentPage + 1) * pageSize, totalElements);
+
+            $('#paginationInfo').text(`Mostrando ${startItem} - ${endItem} de ${totalElements} productos`);
+            $('#currentPageInput').val(currentPage + 1);
+            $('#totalPages').text(totalPages);
+
+            $('#firstPageBtn').prop('disabled', currentPage === 0);
+            $('#prevPageBtn').prop('disabled', currentPage === 0);
+            $('#nextPageBtn').prop('disabled', currentPage >= totalPages - 1);
+            $('#lastPageBtn').prop('disabled', currentPage >= totalPages - 1);
+
+            $('#currentPageInput').attr('max', totalPages);
+        }
+
+        function loadCategories() {
+            $.ajax({
+                url: '/api/products/categories',
+                type: 'GET',
+                success: function(categories) {
+                    const categorySelect = $('#category');
+                    const currentValue = categorySelect.val();
+
+                    categorySelect.empty();
+                    categorySelect.append('<option value="">Seleccione una categoría</option>');
+
+                    categories.forEach(category => {
+                        categorySelect.append(`<option value="${category}">${category}</option>`);
+                    });
+
+                    if (currentValue && $(`#category option[value="${currentValue}"]`).length > 0) {
+                        categorySelect.val(currentValue);
+                    } else if (currentValue === 'other') {
+                        categorySelect.val('other');
+                    }
+                },
+                error: function(error) {
+                    console.error('Error al cargar categorías:', error);
+                }
+            });
+        }
+
+        function showAddProductModal() {
+            $('#productForm')[0].reset();
+            $('#productId').val('');
+            $('#modalTitle').text('Agregar Nuevo Producto');
+
+            $('#stockHelpUser').remove();
+            $('#stockHelp').remove();
+
+            if (!window.isAdmin) {
+                $('#stock').val(0);
+                $('#stock').prop('readonly', true);
+                $('#stock').addClass('bg-light');
+
+                $('#stock').after('<small id="stockHelpUser" class="form-text text-muted">Los productos nuevos comenzarán con stock 0. Un administrador podrá ajustar el stock posteriormente.</small>');
+            } else {
+                $('#stock').prop('readonly', false);
+                $('#stock').removeClass('bg-light');
+            }
+
+            $('#freeCategoryInput').hide();
+            $('#category').show();
+            $('#btnToggleCategory').html('<i class="fas fa-edit"></i>');
+
+            $('#addProductModal').modal('show');
+        }
+
+        function saveProduct() {
+            const productId = $('#productId').val();
+            const category = $('#freeCategoryInput').is(':visible') ?
+                $('#freeCategory').val().trim() :
+                $('#category').val();
+
+            if (!category) {
+                swal('Error', 'La categoría es obligatoria', 'error');
+                return;
+            }
+
+            const productData = {
+                name: $('#name').val(),
+                category: category,
+                price: parseFloat($('#price').val()),
+                description: $('#description').val(),
+                minimumStock: 0
+            };
+
+            if (window.isAdmin || productId) {
+                productData.stock = parseInt($('#stock').val()) || 0;
+            } else {
+                productData.stock = 0;
+            }
+
+            const url = productId ? `/api/products/${productId}` : '/api/products';
+            const method = productId ? 'PUT' : 'POST';
+
+            $.ajax({
+                url: url,
+                type: method,
+                contentType: 'application/json',
+                data: JSON.stringify(productData),
+                success: function(response) {
+                    $('#addProductModal').modal('hide');
+
+                    let message = productId ? 'Producto actualizado correctamente' : 'Producto creado correctamente';
+                    if (!window.isAdmin && !productId) {
+                        message += '. Stock inicial establecido en 0 - contacte al administrador para ajustar el stock.';
+                    }
+
+                    swal('Éxito', message, 'success');
+
+                    if ($('#globalSearchInput').val().trim()) {
+                        searchProducts($('#globalSearchInput').val().trim());
+                    } else {
+                        loadProducts();
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error details:', xhr);
+                    const errorMessage = xhr.responseJSON?.message || 'No se pudo guardar el producto';
+                    swal('Error', errorMessage, 'error');
+                }
+            });
+        }
+
+        function editProduct(id) {
+            $.ajax({
+                url: `/api/products/${id}`,
+                type: 'GET',
+                success: function(product) {
+                    $('#productId').val(product.id);
+                    $('#name').val(product.name);
+                    $('#price').val(product.price);
+                    $('#stock').val(product.stock);
+                    $('#description').val(product.description);
+
+                    $('#stockHelpUser').remove();
+                    $('#stockHelp').remove();
+
+                    if (!window.isAdmin) {
+                        $('#stock').prop('readonly', true);
+                        $('#stock').addClass('bg-light');
+                        $('#stock').after('<small id="stockHelp" class="form-text text-muted">Solo los administradores pueden modificar el stock</small>');
+                    } else {
+                        $('#stock').prop('readonly', false);
+                        $('#stock').removeClass('bg-light');
+                    }
+
+                    const categoryOption = $(`#category option[value="${product.category}"]`);
+                    if (categoryOption.length > 0) {
+                        $('#category').val(product.category);
+                        $('#freeCategoryInput').hide();
+                        $('#category').show();
+                        $('#btnToggleCategory').html('<i class="fas fa-edit"></i>');
+                    } else {
+                        $('#category').val('');
+                        $('#freeCategory').val(product.category);
+                        $('#freeCategoryInput').show();
+                        $('#category').hide();
+                        $('#btnToggleCategory').html('<i class="fas fa-list"></i>');
+                    }
+
+                    $('#modalTitle').text('Editar Producto');
+                    $('#addProductModal').modal('show');
+                },
+                error: function(error) {
+                    console.error('Error al cargar producto:', error);
+                    swal('Error', 'No se pudo cargar el producto para editar', 'error');
+                }
+            });
+        }
+
+        function deleteProduct(id) {
+            swal({
+                title: '¿Estás seguro?',
+                text: '¡No podrás revertir esto!',
+                icon: 'warning',
+                buttons: {
+                    cancel: {
+                        text: 'Cancelar',
+                        value: null,
+                        visible: true,
+                        className: 'btn btn-secondary',
+                        closeModal: true,
+                    },
+                    confirm: {
+                        text: 'Sí, eliminarlo',
+                        value: true,
+                        visible: true,
+                        className: 'btn btn-danger',
+                        closeModal: true
+                    }
+                }
+            }).then((value) => {
+                if (value) {
+                    $.ajax({
+                        url: `/api/products/${id}`,
+                        type: 'DELETE',
+                        success: function(response) {
+                            swal('Eliminado', 'El producto ha sido eliminado', 'success');
+                            if ($('#globalSearchInput').val().trim()) {
+                                searchProducts($('#globalSearchInput').val().trim());
+                            } else {
+                                loadProducts();
+                            }
+                        },
+                        error: function(error) {
+                            console.error('Error al eliminar producto:', error);
+                            swal('Error', 'No se pudo eliminar el producto', 'error');
+                        }
+                    });
+                }
+            });
+        }
+
         $('#firstPageBtn').click(() => goToPage(0));
         $('#prevPageBtn').click(() => goToPage(currentPage - 1));
         $('#nextPageBtn').click(() => goToPage(currentPage + 1));
@@ -352,318 +694,50 @@
             $('#productForm')[0].reset();
             $('#productId').val('');
             $('#modalTitle').text('Agregar Nuevo Producto');
+
+            $('#stock').prop('readonly', false);
+            $('#stock').removeClass('bg-light');
+            $('#stockHelpUser').remove();
+            $('#stockHelp').remove();
+
+            $('#freeCategoryInput').hide();
+            $('#category').show();
+            $('#btnToggleCategory').html('<i class="fas fa-edit"></i>');
         });
 
-        function goToPage(pageNumber) {
-            if (pageNumber < 0 || pageNumber >= totalPages || pageNumber === currentPage) {
-                return;
-            }
+        $('#btnToggleCategory').click(function() {
+            const categorySelect = $('#category');
+            const freeInput = $('#freeCategoryInput');
 
-            currentPage = pageNumber;
-
-            if (isSearching) {
-                searchProducts(searchTerm);
+            if (freeInput.is(':visible')) {
+                freeInput.hide();
+                categorySelect.show();
+                $(this).html('<i class="fas fa-edit"></i>');
             } else {
-                loadProducts();
-            }
-        }
-
-        function loadProducts() {
-            const url = `/api/products/paginated?page=${currentPage}&size=${pageSize}&sortBy=name&sortDir=asc`;
-
-            $.ajax({
-                url: url,
-                type: 'GET',
-                success: function(response) {
-                    renderProducts(response.content);
-                    updatePaginationInfo(response);
-                },
-                error: function(error) {
-                    console.error('Error al cargar productos:', error);
-                    swal('Error', 'No se pudieron cargar los productos', 'error');
-                }
-            });
-        }
-
-        function searchProducts(term) {
-            if (!term) {
-                isSearching = false;
-                loadProducts();
-                return;
-            }
-
-            $.ajax({
-                url: `/api/products/search?name=${encodeURIComponent(term)}`,
-                type: 'GET',
-                success: function(products) {
-                    // Para la búsqueda, simulamos paginación en el frontend
-                    const startIndex = currentPage * pageSize;
-                    const endIndex = startIndex + pageSize;
-                    const paginatedProducts = products.slice(startIndex, endIndex);
-
-                    renderProducts(paginatedProducts);
-
-                    // Crear objeto de respuesta similar al del backend
-                    const mockResponse = {
-                        content: paginatedProducts,
-                        totalElements: products.length,
-                        totalPages: Math.ceil(products.length / pageSize),
-                        number: currentPage,
-                        size: pageSize,
-                        numberOfElements: paginatedProducts.length
-                    };
-
-                    updatePaginationInfo(mockResponse);
-                },
-                error: function(error) {
-                    console.error('Error al buscar productos:', error);
-                    swal('Error', 'Error en la búsqueda de productos', 'error');
-                }
-            });
-        }
-
-        function renderProducts(products) {
-            const tableBody = $('#productsTableBody');
-            tableBody.empty();
-
-            if (products.length === 0) {
-                tableBody.append(`
-                    <tr>
-                        <td colspan="7" class="text-center text-muted">
-                            ${isSearching ? 'No se encontraron productos con ese criterio de búsqueda' : 'No hay productos para mostrar'}
-                        </td>
-                    </tr>
-                `);
-                return;
-            }
-
-            products.forEach(product => {
-                const status = product.stock <= 0 ?
-                    '<span class="badge badge-danger">Agotado</span>' :
-                    (product.stock < 10 ?
-                        '<span class="badge badge-warning">Bajo stock</span>' :
-                        '<span class="badge badge-success">Disponible</span>');
-
-                const row = `
-                    <tr>
-                        <td>${product.id}</td>
-                        <td>${product.name}</td>
-                        <td>${product.category}</td>
-                        <td>$${product.price.toFixed(2)}</td>
-                        <td>${product.stock}</td>
-                        <td>${status}</td>
-                        <td>
-                            <button class="btn btn-icon btn-round btn-info btn-sm me-1" onclick="editProduct(${product.id})">
-                                <i class="fas fa-edit fa-xs"></i>
-                            </button>
-                            <button class="btn btn-icon btn-round btn-danger btn-sm" onclick="deleteProduct(${product.id})">
-                                <i class="fas fa-trash fa-xs"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `;
-                tableBody.append(row);
-            });
-        }
-
-        function updatePaginationInfo(response) {
-            totalElements = response.totalElements;
-            totalPages = response.totalPages;
-            currentPage = response.number;
-
-            const startItem = totalElements > 0 ? (currentPage * pageSize) + 1 : 0;
-            const endItem = Math.min((currentPage + 1) * pageSize, totalElements);
-
-            $('#paginationInfo').text(`Mostrando ${startItem} - ${endItem} de ${totalElements} productos`);
-            $('#currentPageInput').val(currentPage + 1);
-            $('#totalPages').text(totalPages);
-
-            // Actualizar estado de botones
-            $('#firstPageBtn').prop('disabled', currentPage === 0);
-            $('#prevPageBtn').prop('disabled', currentPage === 0);
-            $('#nextPageBtn').prop('disabled', currentPage >= totalPages - 1);
-            $('#lastPageBtn').prop('disabled', currentPage >= totalPages - 1);
-
-            // Actualizar input de página
-            $('#currentPageInput').attr('max', totalPages);
-        }
-    });
-
-    function loadCategories() {
-        $.ajax({
-            url: '/api/products/categories',
-            type: 'GET',
-            success: function(categories) {
-                const categorySelect = $('#category');
-                const currentValue = categorySelect.val();
-
-                categorySelect.empty();
-                categorySelect.append('<option value="">Seleccione una categoría</option>');
-
-                categories.forEach(category => {
-                    categorySelect.append(`<option value="${category}">${category}</option>`);
-                });
-
-                if (currentValue && $(`#category option[value="${currentValue}"]`).length > 0) {
-                    categorySelect.val(currentValue);
-                } else if (currentValue === 'other') {
-                    categorySelect.val('other');
-                }
-            },
-            error: function(error) {
-                console.error('Error al cargar categorías:', error);
+                categorySelect.hide();
+                freeInput.show();
+                $(this).html('<i class="fas fa-list"></i>');
+                $('#freeCategory').focus();
             }
         });
-    }
 
-    function saveProduct() {
-        const productId = $('#productId').val();
-        const category = $('#freeCategoryInput').is(':visible') ?
-            $('#freeCategory').val().trim() :
-            $('#category').val();
-
-        if (!category) {
-            swal('Error', 'La categoría es obligatoria', 'error');
-            return;
-        }
-
-        const productData = {
-            name: $('#name').val(),
-            category: category,
-            price: parseFloat($('#price').val()),
-            stock: parseInt($('#stock').val()),
-            description: $('#description').val()
-        };
-
-        const url = productId ? `/api/products/${productId}` : '/api/products';
-        const method = productId ? 'PUT' : 'POST';
-
-        $.ajax({
-            url: url,
-            type: method,
-            contentType: 'application/json',
-            data: JSON.stringify(productData),
-            success: function(response) {
-                $('#addProductModal').modal('hide');
-                swal('Éxito', productId ? 'Producto actualizado correctamente' : 'Producto creado correctamente', 'success');
-                // Recargar la página actual después de guardar
-                if ($('#globalSearchInput').val().trim()) {
-                    searchProducts($('#globalSearchInput').val().trim());
-                } else {
-                    loadProducts();
+        $('#freeCategory').on('input', function() {
+            const newCategory = $(this).val().trim();
+            if (newCategory) {
+                if ($('#category option[value="other"]').length === 0) {
+                    $('#category').append('<option value="other">Otra categoría</option>');
                 }
-            },
-            error: function(error) {
-                console.error('Error al guardar producto:', error);
-                const errorMessage = error.responseJSON?.message || 'No se pudo guardar el producto';
-                swal('Error', errorMessage, 'error');
+                $('#category').val('other');
             }
         });
-    }
 
-    function editProduct(id) {
-        $.ajax({
-            url: `/api/products/${id}`,
-            type: 'GET',
-            success: function(product) {
-                $('#productId').val(product.id);
-                $('#name').val(product.name);
-                $('#price').val(product.price);
-                $('#stock').val(product.stock);
-                $('#description').val(product.description);
-
-                const categoryOption = $(`#category option[value="${product.category}"]`);
-                if (categoryOption.length > 0) {
-                    $('#category').val(product.category);
-                    $('#freeCategoryInput').hide();
-                    $('#category').show();
-                    $('#btnToggleCategory').html('<i class="fas fa-edit"></i>');
-                } else {
-                    $('#category').val('');
-                    $('#freeCategory').val(product.category);
-                    $('#freeCategoryInput').show();
-                    $('#category').hide();
-                    $('#btnToggleCategory').html('<i class="fas fa-list"></i>');
-                }
-
-                $('#modalTitle').text('Editar Producto');
-                $('#addProductModal').modal('show');
-            },
-            error: function(error) {
-                console.error('Error al cargar producto:', error);
-                swal('Error', 'No se pudo cargar el producto para editar', 'error');
-            }
+        $('#addProductBtn').click(function() {
+            showAddProductModal();
         });
-    }
 
-    function deleteProduct(id) {
-        swal({
-            title: '¿Estás seguro?',
-            text: '¡No podrás revertir esto!',
-            icon: 'warning',
-            buttons: {
-                cancel: {
-                    text: 'Cancelar',
-                    value: null,
-                    visible: true,
-                    className: 'btn btn-secondary',
-                    closeModal: true,
-                },
-                confirm: {
-                    text: 'Sí, eliminarlo',
-                    value: true,
-                    visible: true,
-                    className: 'btn btn-danger',
-                    closeModal: true
-                }
-            }
-        }).then((value) => {
-            if (value) {
-                $.ajax({
-                    url: `/api/products/${id}`,
-                    type: 'DELETE',
-                    success: function(response) {
-                        swal('Eliminado', 'El producto ha sido eliminado', 'success');
-                        // Recargar la página actual después de eliminar
-                        if ($('#globalSearchInput').val().trim()) {
-                            searchProducts($('#globalSearchInput').val().trim());
-                        } else {
-                            loadProducts();
-                        }
-                    },
-                    error: function(error) {
-                        console.error('Error al eliminar producto:', error);
-                        swal('Error', 'No se pudo eliminar el producto', 'error');
-                    }
-                });
-            }
-        });
-    }
-
-    $('#btnToggleCategory').click(function() {
-        const categorySelect = $('#category');
-        const freeInput = $('#freeCategoryInput');
-
-        if (freeInput.is(':visible')) {
-            freeInput.hide();
-            categorySelect.show();
-            $(this).html('<i class="fas fa-edit"></i>');
-        } else {
-            categorySelect.hide();
-            freeInput.show();
-            $(this).html('<i class="fas fa-list"></i>');
-            $('#freeCategory').focus();
-        }
-    });
-
-    $('#freeCategory').on('input', function() {
-        const newCategory = $(this).val().trim();
-        if (newCategory) {
-            if ($('#category option[value="other"]').length === 0) {
-                $('#category').append('<option value="other">Otra categoría</option>');
-            }
-            $('#category').val('other');
-        }
+        window.editProduct = editProduct;
+        window.deleteProduct = deleteProduct;
+        window.showAddProductModal = showAddProductModal;
     });
 </script>
 </body>

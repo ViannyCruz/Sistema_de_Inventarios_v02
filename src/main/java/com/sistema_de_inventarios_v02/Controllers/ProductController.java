@@ -27,7 +27,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/products")
 @CrossOrigin(origins = "*", allowedHeaders = "*")
-@Validated // Necesario para validaciones en parámetros de query
+@Validated
 public class ProductController {
 
     private final ProductService productService;
@@ -40,25 +40,28 @@ public class ProductController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
     public ResponseEntity<ProductResponseDTO> createProduct(@Valid @RequestBody CreateProductDTO createProductDTO) {
+        System.out.println("CREAR EL PRODUCTO");
         ProductResponseDTO createdProduct = productService.createProduct(createProductDTO);
         return new ResponseEntity<>(createdProduct, HttpStatus.CREATED);
     }
 
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN') or hasRole('USER') or hasRole('VISITOR')")
     public ResponseEntity<List<ProductSummaryDTO>> getAllProducts() {
         List<ProductSummaryDTO> products = productService.getAllProductsSummary();
         return ResponseEntity.ok(products);
     }
 
     @GetMapping("/paginated")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('USER') or hasRole('VISITOR')")
     public ResponseEntity<Page<ProductSummaryDTO>> getProductsPaginated(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "name") String sortBy,
             @RequestParam(defaultValue = "asc") String sortDir) {
 
-        // Validar parámetros de paginación
         if (page < 0) {
             page = 0;
         }
@@ -76,12 +79,14 @@ public class ProductController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('USER') or hasRole('VISITOR')")
     public ResponseEntity<ProductResponseDTO> getProductById(@PathVariable Long id) {
         ProductResponseDTO product = productService.getProductById(id);
         return ResponseEntity.ok(product);
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
     public ResponseEntity<ProductResponseDTO> updateProduct(@PathVariable Long id,
                                                             @Valid @RequestBody UpdateProductDTO updateProductDTO) {
         ProductResponseDTO updatedProduct = productService.updateProduct(id, updateProductDTO);
@@ -89,6 +94,7 @@ public class ProductController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
     public ResponseEntity<Map<String, Object>> deleteProduct(@PathVariable Long id) {
         productService.deleteProduct(id);
         return ResponseEntity.ok(Map.of(
@@ -99,10 +105,10 @@ public class ProductController {
     }
 
     @GetMapping("/search")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('USER') or hasRole('VISITOR')")
     public ResponseEntity<List<ProductSummaryDTO>> searchProductsByName(
             @RequestParam String name) {
 
-        // Validar que el nombre no esté vacío
         if (name == null || name.trim().isEmpty()) {
             return ResponseEntity.badRequest().build();
         }
@@ -112,18 +118,21 @@ public class ProductController {
     }
 
     @GetMapping("/category/{category}")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('USER') or hasRole('VISITOR')")
     public ResponseEntity<List<ProductSummaryDTO>> getProductsByCategory(@PathVariable String category) {
         List<ProductSummaryDTO> products = productService.getProductsByCategory(category);
         return ResponseEntity.ok(products);
     }
 
     @GetMapping("/low-stock")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('USER') or hasRole('VISITOR')")
     public ResponseEntity<List<ProductResponseDTO>> getProductsWithLowStock() {
         List<ProductResponseDTO> products = productService.getProductsWithLowStock();
         return ResponseEntity.ok(products);
     }
 
     @GetMapping("/out-of-stock")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('USER') or hasRole('VISITOR')")
     public ResponseEntity<List<ProductResponseDTO>> getProductsOutOfStock() {
         List<ProductResponseDTO> products = productService.getProductsOutOfStock();
         return ResponseEntity.ok(products);
@@ -138,12 +147,14 @@ public class ProductController {
     }
 
     @GetMapping("/categories")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('USER') or hasRole('VISITOR')")
     public ResponseEntity<List<String>> getAllCategories() {
         List<String> categories = productService.getAllCategories();
         return ResponseEntity.ok(categories);
     }
 
     @GetMapping("/price-range")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('USER') or hasRole('VISITOR')")
     public ResponseEntity<List<ProductSummaryDTO>> getProductsByPriceRange(
             @RequestParam
             @DecimalMin(value = "0.0", message = "El precio mínimo debe ser mayor o igual a cero")
@@ -152,7 +163,6 @@ public class ProductController {
             @DecimalMin(value = "0.0", message = "El precio máximo debe ser mayor o igual a cero")
             Double maxPrice) {
 
-        // Validar que el rango de precios sea lógico
         if (minPrice > maxPrice) {
             return ResponseEntity.badRequest()
                     .header("Error-Message", "El precio mínimo no puede ser mayor que el precio máximo")
@@ -164,14 +174,14 @@ public class ProductController {
     }
 
     @GetMapping("/stats")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('USER') or hasRole('VISITOR')")
     public ResponseEntity<Map<String, Object>> getProductStats() {
         Map<String, Object> stats = productService.getProductStats();
         return ResponseEntity.ok(stats);
     }
 
-    // NUEVOS ENDPOINTS ÚTILES
-
     @GetMapping("/filters")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('USER') or hasRole('VISITOR')")
     public ResponseEntity<Page<ProductSummaryDTO>> getProductsWithFilters(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -180,7 +190,6 @@ public class ProductController {
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String name) {
 
-        // Validar parámetros de paginación
         if (page < 0) page = 0;
         if (size <= 0 || size > 100) size = 10;
 
@@ -194,6 +203,7 @@ public class ProductController {
     }
 
     @GetMapping("/count")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('USER') or hasRole('VISITOR')")
     public ResponseEntity<Map<String, Long>> getProductCounts() {
         Map<String, Object> stats = productService.getProductStats();
 
@@ -208,6 +218,7 @@ public class ProductController {
     }
 
     @GetMapping("/health")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('USER') or hasRole('VISITOR')")
     public ResponseEntity<Map<String, String>> healthCheck() {
         return ResponseEntity.ok(Map.of(
                 "status", "UP",

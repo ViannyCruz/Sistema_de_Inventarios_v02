@@ -135,7 +135,7 @@ public class ProductController {
     }
 
     @PatchMapping("/{id}/stock")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('USER')")
     public ResponseEntity<ProductResponseDTO> updateProductStock(@PathVariable Long id,
                                                                  @Valid @RequestBody StockUpdateDTO stockUpdateDTO) {
         ProductResponseDTO updatedProduct = productService.updateProductStock(id, stockUpdateDTO);

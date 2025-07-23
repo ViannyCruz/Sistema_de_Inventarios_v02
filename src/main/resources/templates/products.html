@@ -489,16 +489,18 @@
             $('#stockHelpUser').remove();
             $('#stockHelp').remove();
 
-            if (!window.isAdmin) {
-                $('#stock').val(0);
-                $('#stock').prop('readonly', true);
-                $('#stock').addClass('bg-light');
+//            if (!window.isAdmin) {
+//                $('#stock').val(0);
+//                $('#stock').prop('readonly', true);
+//                $('#stock').addClass('bg-light');
+//                $('#stock').after('<small id="stockHelpUser" class="form-text text-muted">Los productos nuevos comenzarán con stock 0. Un administrador podrá ajustar el stock posteriormente.</small>');
+//            } else {
+//                $('#stock').prop('readonly', false);
+//                $('#stock').removeClass('bg-light');
+//            }
 
-                $('#stock').after('<small id="stockHelpUser" class="form-text text-muted">Los productos nuevos comenzarán con stock 0. Un administrador podrá ajustar el stock posteriormente.</small>');
-            } else {
-                $('#stock').prop('readonly', false);
-                $('#stock').removeClass('bg-light');
-            }
+            $('#stock').prop('readonly', false);
+            $('#stock').removeClass('bg-light');
 
             $('#freeCategoryInput').hide();
             $('#category').show();
@@ -526,11 +528,13 @@
                 minimumStock: 0
             };
 
-            if (window.isAdmin || productId) {
-                productData.stock = parseInt($('#stock').val()) || 0;
-            } else {
-                productData.stock = 0;
-            }
+//            if (window.isAdmin || productId) {
+//                productData.stock = parseInt($('#stock').val()) || 0;
+//            } else {
+//                productData.stock = 0;
+//            }
+
+            productData.stock = parseInt($('#stock').val()) || 0;
 
             const url = productId ? `/api/products/${productId}` : '/api/products';
             const method = productId ? 'PUT' : 'POST';
@@ -544,9 +548,9 @@
                     $('#addProductModal').modal('hide');
 
                     let message = productId ? 'Producto actualizado correctamente' : 'Producto creado correctamente';
-                    if (!window.isAdmin && !productId) {
-                        message += '. Stock inicial establecido en 0 - contacte al administrador para ajustar el stock.';
-                    }
+//                    if (!window.isAdmin && !productId) {
+//                        message += '. Stock inicial establecido en 0 - contacte al administrador para ajustar el stock.';
+//                    }
 
                     swal('Éxito', message, 'success');
 
@@ -578,14 +582,17 @@
                     $('#stockHelpUser').remove();
                     $('#stockHelp').remove();
 
-                    if (!window.isAdmin) {
-                        $('#stock').prop('readonly', true);
-                        $('#stock').addClass('bg-light');
-                        $('#stock').after('<small id="stockHelp" class="form-text text-muted">Solo los administradores pueden modificar el stock</small>');
-                    } else {
-                        $('#stock').prop('readonly', false);
-                        $('#stock').removeClass('bg-light');
-                    }
+//                    if (!window.isAdmin) {
+//                        $('#stock').prop('readonly', true);
+//                        $('#stock').addClass('bg-light');
+//                        $('#stock').after('<small id="stockHelp" class="form-text text-muted">Solo los administradores pueden modificar el stock</small>');
+//                    } else {
+//                        $('#stock').prop('readonly', false);
+//                        $('#stock').removeClass('bg-light');
+//                    }
+
+                    $('#stock').prop('readonly', false);
+                    $('#stock').removeClass('bg-light');
 
                     const categoryOption = $(`#category option[value="${product.category}"]`);
                     if (categoryOption.length > 0) {

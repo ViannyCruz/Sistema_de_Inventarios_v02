@@ -6,6 +6,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -19,6 +20,20 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/debug")
 public class DebugController {
 
+    //   api/debug/audit
+    @GetMapping("/audit")
+    //@PreAuthorize("hasRole('ADMIN')")
+    public String adminView(Authentication authentication, Model model) {
+        /*
+        if (authentication != null && authentication.isAuthenticated()) {
+
+            model.addAttribute("username", authentication.getName());
+        }
+        return "admin";
+        */
+
+        return "inventory-movements";
+    }
     @GetMapping("/user-info")
     public ResponseEntity<Map<String, Object>> getUserInfo(Authentication authentication) {
         Map<String, Object> response = new HashMap<>();

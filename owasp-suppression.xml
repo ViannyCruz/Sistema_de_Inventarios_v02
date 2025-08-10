@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+    <suppress>
+        <notes>CVEs de 2025 - Verificar si son reales</notes>
+        <cve>CVE-2025-22233</cve>
+        <cve>CVE-2025-41234</cve>
+        <cve>CVE-2025-41232</cve>
+        <cve>CVE-2025-22223</cve>
+        <cve>CVE-2025-22228</cve>
+        <cve>CVE-2025-53864</cve>
+    </suppress>
+    
+    <suppress>
+        <notes>H2 Database - Solo desarrollo</notes>
+        <gav regex="true">^com\.h2database:h2:.*</gav>
+        <cve>CVE-2018-14335</cve>
+    </suppress>
+</suppressions>

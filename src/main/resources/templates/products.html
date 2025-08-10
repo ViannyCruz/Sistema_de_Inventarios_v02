@@ -466,28 +466,46 @@
     </div>
 </div>
 
-<!--   Core JS Files   -->
-<script th:src="@{/assets/js/core/jquery-3.7.1.min.js}"></script>
-<script th:src="@{/assets/js/core/popper.min.js}"></script>
-<script th:src="@{/assets/js/core/bootstrap.min.js}"></script>
+<!-- jQuery from CDN -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"
+        integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo="
+        crossorigin="anonymous"></script>
 
-<!-- jQuery Scrollbar -->
+<!-- Bootstrap JS from CDN -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz"
+        crossorigin="anonymous"></script>
+
+<!-- SweetAlert from CDN -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert@2.1.2/dist/sweetalert.min.js"></script>
+
+<!-- DataTables from CDN -->
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+<!-- Day.js -->
+<script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/dayjs.min.js"
+        integrity="sha256-vjf0GtBSz2qSnVAjYaLzIz5PqQWnQNqNLR+5EIXKF+8="
+        crossorigin="anonymous"></script>
+
+<!-- Your local scripts -->
 <script th:src="@{/assets/js/plugin/jquery-scrollbar/jquery.scrollbar.min.js}"></script>
-
-<!-- Datatables -->
-<script th:src="@{/assets/js/plugin/datatables/datatables.min.js}"></script>
-
-<!-- Sweet Alert -->
-<script th:src="@{/assets/js/plugin/sweetalert/sweetalert.min.js}"></script>
-
-<!-- Kaiadmin JS -->
 <script th:src="@{/assets/js/kaiadmin.min.js}"></script>
 
-<!-- Script para manejar productos con paginación -->
+<!-- Application JavaScript -->
 <script>
-    $(document).ready(function() {
+    console.log('🚀 Starting Products App...');
 
-        const table = $('#productsTable');
+    if (typeof jQuery === 'undefined') {
+        alert('Error crítico: jQuery no se ha cargado desde CDN. Verifica tu conexión a internet.');
+        throw new Error('jQuery not loaded');
+    } else {
+        console.log('✅ jQuery loaded from CDN:', jQuery.fn.jquery);
+    }
+
+    $(document).ready(function() {
+        console.log('📱 DOM ready, initializing app...');
+
         let currentPage = 0;
         let pageSize = 10;
         let totalElements = 0;
@@ -500,10 +518,7 @@
         loadProducts();
         checkStockAlerts();
 
-//        setInterval(checkStockAlerts, 30000); //Cada 30 Segs
-//        setInterval(checkStockAlerts, 60000); //Cada 1 Minuto
-        setInterval(checkStockAlerts, 120000); //Cada 2 Minutos
-
+        setInterval(checkStockAlerts, 120000);
 
         function goToPage(pageNumber) {
             if (pageNumber < 0 || pageNumber >= totalPages || pageNumber === currentPage) {
@@ -575,12 +590,12 @@
 
             if (products.length === 0) {
                 tableBody.append(`
-            <tr>
-                <td colspan="7" class="text-center text-muted">
-                    ${isSearching ? 'No se encontraron productos con ese criterio de búsqueda' : 'No hay productos para mostrar'}
-                </td>
-            </tr>
-        `);
+                <tr>
+                    <td colspan="7" class="text-center text-muted">
+                        ${isSearching ? 'No se encontraron productos con ese criterio de búsqueda' : 'No hay productos para mostrar'}
+                    </td>
+                </tr>
+            `);
                 return;
             }
 
@@ -606,16 +621,16 @@
                 }
 
                 const row = `
-            <tr>
-                <td>${product.id}</td>
-                <td>${product.name}</td>
-                <td>${product.category}</td>
-                <td>$${product.price.toFixed(2)}</td>
-                <td>${product.stock}</td>
-                <td>${status}</td>
-                <td>${actionButtons}</td>
-            </tr>
-        `;
+                <tr>
+                    <td>${product.id}</td>
+                    <td>${product.name}</td>
+                    <td>${product.category}</td>
+                    <td>${product.price.toFixed(2)}</td>
+                    <td>${product.stock}</td>
+                    <td>${status}</td>
+                    <td>${actionButtons}</td>
+                </tr>
+            `;
                 tableBody.append(row);
             });
         }
@@ -787,16 +802,6 @@
             $('#stockHelpUser').remove();
             $('#stockHelp').remove();
 
-//            if (!window.isAdmin) {
-//                $('#stock').val(0);
-//                $('#stock').prop('readonly', true);
-//                $('#stock').addClass('bg-light');
-//                $('#stock').after('<small id="stockHelpUser" class="form-text text-muted">Los productos nuevos comenzarán con stock 0. Un administrador podrá ajustar el stock posteriormente.</small>');
-//            } else {
-//                $('#stock').prop('readonly', false);
-//                $('#stock').removeClass('bg-light');
-//            }
-
             $('#stock').prop('readonly', false);
             $('#stock').removeClass('bg-light');
 
@@ -826,12 +831,6 @@
                 minimumStock: 0
             };
 
-//            if (window.isAdmin || productId) {
-//                productData.stock = parseInt($('#stock').val()) || 0;
-//            } else {
-//                productData.stock = 0;
-//            }
-
             productData.stock = parseInt($('#stock').val()) || 0;
 
             const url = productId ? `/api/products/${productId}` : '/api/products';
@@ -846,9 +845,6 @@
                     $('#addProductModal').modal('hide');
 
                     let message = productId ? 'Producto actualizado correctamente' : 'Producto creado correctamente';
-//                    if (!window.isAdmin && !productId) {
-//                        message += '. Stock inicial establecido en 0 - contacte al administrador para ajustar el stock.';
-//                    }
 
                     swal('Éxito', message, 'success');
 
@@ -879,15 +875,6 @@
 
                     $('#stockHelpUser').remove();
                     $('#stockHelp').remove();
-
-//                    if (!window.isAdmin) {
-//                        $('#stock').prop('readonly', true);
-//                        $('#stock').addClass('bg-light');
-//                        $('#stock').after('<small id="stockHelp" class="form-text text-muted">Solo los administradores pueden modificar el stock</small>');
-//                    } else {
-//                        $('#stock').prop('readonly', false);
-//                        $('#stock').removeClass('bg-light');
-//                    }
 
                     $('#stock').prop('readonly', false);
                     $('#stock').removeClass('bg-light');
@@ -959,6 +946,7 @@
             });
         }
 
+        // Event Handlers
         $('#firstPageBtn').click(() => goToPage(0));
         $('#prevPageBtn').click(() => goToPage(currentPage - 1));
         $('#nextPageBtn').click(() => goToPage(currentPage + 1));
@@ -1042,16 +1030,16 @@
             }
         });
 
-        $('#addProductBtn').click(function() {
-            showAddProductModal();
-        });
-
+        // Global function definitions for onclick handlers
         window.toggleAlertsPanel = toggleAlertsPanel;
         window.checkStockAlerts = checkStockAlerts;
         window.editProduct = editProduct;
         window.deleteProduct = deleteProduct;
         window.showAddProductModal = showAddProductModal;
+
+        console.log('✅ Products app initialized successfully!');
     });
 </script>
+
 </body>
 </html>

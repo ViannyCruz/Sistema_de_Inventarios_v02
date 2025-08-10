@@ -1,0 +1,34 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driverClassName: org.h2.Driver
+    username: sa
+    password: password
+
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+
+  h2:
+    console:
+      enabled: true
+
+  # DESACTIVAR FLYWAY para tests
+  flyway:
+    enabled: false
+
+  # Desactivar OAuth2 para tests
+  security:
+    oauth2:
+      client:
+        registration: {}
+        provider: {}
+      resourceserver:
+        jwt:
+          issuer-uri:
+    user:
+      name: testuser
+      password: testpass
+      roles: USER,ADMIN

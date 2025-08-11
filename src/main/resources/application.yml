@@ -1,62 +1,127 @@
-
-
 spring:
   profiles:
     active: default
 
-
-  # Configuración de base de datos para pruebas
-datasource:
-  url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
-  driver-class-name: org.h2.Driver
-  username: sa
-  password: ""
-
-  # JPA para pruebas
+  datasource:
+    url: jdbc:mysql://localhost:3306/sistemainventario
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: root
+    password: 12345678
 
   jpa:
-    database-platform: org.hibernate.dialect.H2Dialect
+    database-platform: org.hibernate.dialect.MySQL8Dialect
     hibernate:
-    ddl-auto: create-drop
+      ddl-auto: validate
     show-sql: false
     properties:
-     hibernate:
-     format_sql: false
+      hibernate:
+        format_sql: true
 
-  # Thymeleaf para pruebas
   thymeleaf:
     cache: false
 
   security:
     oauth2:
+      client:
+        registration:
+          keycloak:
+            client-id: inventory-system
+            client-secret: bbo4OjQyxY33TfevXRGDlcjGCXsIMTcH
+            scope: openid, profile, email
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+        provider:
+          keycloak:
+            issuer-uri: http://localhost:8080/realms/inventory-realm
+            user-name-attribute: preferred_username
       resourceserver:
         jwt:
-          issuer-uri: http://localhost:8080/realms/your-realm
-          jwk-set-uri: http://localhost:8080/realms/your-realm/protocol/openid-connect/certs
+          issuer-uri: http://localhost:8080/realms/inventory-realm
+          jwk-set-uri: http://localhost:8080/realms/inventory-realm/protocol/openid-connect/certs
 
-# Logging configurado para pruebas
+jwt:
+  secret: mySecretKey12345678901234567890123456789012345678901234567890123456789012345678901234567890
+  expiration: 86400
+
+keycloak:
+  auth-server-url: http://localhost:8080
+  realm: inventory-realm
+  resource: inventory-system
+  credentials:
+    secret: bbo4OjQyxY33TfevXRGDlcjGCXsIMTcH
+  logout-url: http://localhost:8080/realms/inventory-realm/protocol/openid-connect/logout
+
+app:
+  base-url: http://localhost:8081
+  admin:
+    username: admin
+    password: admin123
+
 logging:
   level:
+    root: INFO
+    com.sistema_de_inventarios_v02: DEBUG
+    com.sistema_de_inventarios_v02.jwt: TRACE
+    org.springframework.security: DEBUG
+    org.springframework.security.oauth2: DEBUG
+    org.springframework.web.client: DEBUG
+    org.hibernate: WARN
+    org.springframework.test: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+server:
+  port: 8081
+  servlet:
+    session:
+      timeout: 30m
+
+---
+spring:
+  config:
+    activate:
+      on-profile: test
+  
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            client-id: inventory-system
+            client-secret: bbo4OjQyxY33TfevXRGDlcjGCXsIMTcH
+            scope: openid, profile, email
+            authorization-grant-type: authorization_code
+        provider:
+          keycloak:
+            issuer-uri: http://localhost:8080/realms/inventory-realm
+            user-name-attribute: preferred_username
+
+jwt:
+  secret: mySecretKey12345678901234567890123456789012345678901234567890123456789012345678901234567890
+  expiration: 86400
+
+keycloak:
+  auth-server-url: http://localhost:8080
+  realm: inventory-realm
+  resource: inventory-system
+  credentials:
+    secret: bbo4OjQyxY33TfevXRGDlcjGCXsIMTcH
+
+logging:
+  level:
+    root: WARN
     com.sistema_de_inventarios_v02: INFO
     org.springframework.test: WARN
     org.hibernate: WARN
-
-#app:
-#  jwt:
-#    secret: mySecretKey12345678901234567890123456789012345678901234567890123456789012345678901234567890
-#    expiration: 86400000 # 24 horas
-#admin:
-#  username: admin
-#  password: admin123
-
-# Configuración específica para el mapeo de roles
-keycloak:
-  auth-server-url: http://localhost:8080
-  realm: your-realm
-  resource: your-client-id
-  public-client: true
-
-  # Configuración para mapeo de roles
-  role-mappings:
-    realm-access-roles: true
-    resource-access-roles: true

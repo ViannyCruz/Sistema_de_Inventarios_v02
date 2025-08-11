@@ -32,17 +32,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain chain) throws ServletException, IOException {
 
+        String requestUri = request.getRequestURI();
+
+        if (!isCustomJWTEndpoint(requestUri)) {
+            logger.debug("Skipping JWT processing for Keycloak endpoint: {}", requestUri);
+            chain.doFilter(request, response);
+            return;
+        }
+
         if (SecurityContextHolder.getContext().getAuthentication() != null &&
                 SecurityContextHolder.getContext().getAuthentication().isAuthenticated() &&
                 !ANONYMOUS_USER.equals(SecurityContextHolder.getContext()
                         .getAuthentication().getPrincipal())) {
 
-            if (logger.isDebugEnabled()) {
-                logger.debug("OAuth2 authentication already present, skipping JWT processing for: {}",
-                        request.getRequestURI());
-            }
-            chain.doFilter(request, response);
-            return;
+            logger.debug("Clearing OAuth2 authentication for JWT endpoint: {}", requestUri);
+            SecurityContextHolder.getContext().setAuthentication(null);
         }
 
         final String requestTokenHeader = request.getHeader("Authorization");
@@ -54,25 +58,32 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (requestTokenHeader != null && requestTokenHeader.startsWith(BEARER_PREFIX)) {
             jwtToken = requestTokenHeader.substring(BEARER_PREFIX.length());
             try {
+                if (isKeycloakToken(jwtToken)) {
+                    logger.error("Keycloak token detected on JWT endpoint: {}", requestUri);
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType("application/json");
+                    response.getWriter().write("{\"error\":\"WRONG_TOKEN_TYPE\",\"message\":\"Este endpoint requiere JWT personalizado, no token de Keycloak\"}");
+                    return;
+                }
+
                 username = jwtUtil.extractUsername(jwtToken);
                 role = jwtUtil.extractRole(jwtToken);
+
+                logger.debug("Extracted from custom JWT - Username: {}, Role: {}", username, role);
+
             } catch (IllegalArgumentException e) {
-                if (logger.isErrorEnabled()) {
-                    logger.error("Unable to get JWT Token");
-                }
+                logger.error("Unable to get JWT Token: {}", e.getMessage());
+                sendUnauthorizedResponse(response, "TOKEN_INVALID", "Token JWT inválido");
+                return;
             } catch (Exception e) {
-                if (logger.isErrorEnabled()) {
-                    logger.error("JWT Token has expired");
-                }
+                logger.error("JWT Token has expired or is invalid: {}", e.getMessage());
+                sendUnauthorizedResponse(response, "TOKEN_EXPIRED", "Token JWT expirado o inválido");
+                return;
             }
         } else {
-            String requestUri = request.getRequestURI();
-            if (requestUri.startsWith("/api/") &&
-                    !requestUri.startsWith("/api/auth/")) {
-                if (logger.isDebugEnabled()) {
-                    logger.debug("No JWT Token found for API endpoint: {}", requestUri);
-                }
-            }
+            logger.error("No JWT Token found for API endpoint: {}", requestUri);
+            sendUnauthorizedResponse(response, "TOKEN_REQUIRED", "Token JWT requerido para este endpoint");
+            return;
         }
 
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
@@ -89,21 +100,54 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 SecurityContextHolder.getContext().setAuthentication(authToken);
 
-                if (logger.isDebugEnabled()) {
-                    logger.debug("JWT authentication successful for user: {}", username);
-                }
+                logger.debug("JWT authentication successful for user: {} with role: {}", username, role);
             } else {
-                if (logger.isWarnEnabled()) {
-                    logger.warn("JWT token validation failed");
-                }
+                logger.warn("JWT token validation failed for user: {}", username);
+                sendUnauthorizedResponse(response, "TOKEN_VALIDATION_FAILED", "Validación de token falló");
+                return;
             }
         }
+
         chain.doFilter(request, response);
+    }
+
+    private boolean isCustomJWTEndpoint(String path) {
+        return path.startsWith("/api/auth/") || path.startsWith("/api/inventory/");
+    }
+
+    private boolean isKeycloakToken(String token) {
+        try {
+            String[] chunks = token.split("\\.");
+            if (chunks.length < 2) {
+                return false;
+            }
+
+            String payload = new String(java.util.Base64.getUrlDecoder().decode(chunks[1]));
+
+            return payload.contains("realm_access") ||
+                    payload.contains("resource_access") ||
+                    payload.contains("localhost:8080/realms/inventory-realm") ||
+                    payload.contains("inventory-system");
+
+        } catch (Exception e) {
+            logger.debug("Error analyzing token structure: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    private void sendUnauthorizedResponse(HttpServletResponse response, String errorCode, String message) throws IOException {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setContentType("application/json");
+        response.getWriter().write(String.format(
+                "{\"error\":\"%s\",\"message\":\"%s\",\"timestamp\":\"%s\"}",
+                errorCode, message, java.time.LocalDateTime.now()
+        ));
     }
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
         String path = request.getRequestURI();
+
         boolean shouldSkip = path.startsWith("/login") ||
                 path.startsWith("/oauth2") ||
                 path.startsWith("/error") ||
@@ -115,12 +159,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 path.startsWith("/webjars/") ||
                 path.startsWith("/fonts/") ||
                 "/favicon.ico".equals(path) ||
-                path.startsWith("/api/auth/") ||
+                "/".equals(path) ||
+
                 "/api/auth/login".equals(path) ||
-                "/".equals(path);
+                "/api/auth/register".equals(path);
 
         if (shouldSkip && logger.isDebugEnabled()) {
-            logger.debug("Skipping JWT filter for path: {}", path);
+            logger.debug("Skipping JWT filter for public/static path: {}", path);
         }
 
         return shouldSkip;

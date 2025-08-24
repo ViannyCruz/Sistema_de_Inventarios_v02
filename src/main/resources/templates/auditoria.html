@@ -1,0 +1,1197 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <title>Kaiadmin - Auditoría de Productos</title>
+    <meta content="width=device-width, initial-scale=1.0, shrink-to-fit=no" name="viewport" />
+    <link rel="icon" th:href="@{/assets/img/kaiadmin/logocv.ico}" type="image/x-icon" />
+
+    <!-- En el head -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- CSS Files -->
+    <link rel="stylesheet" th:href="@{/assets/css/bootstrap.min.css}" />
+    <link rel="stylesheet" th:href="@{/assets/css/plugins.min.css}" />
+    <link rel="stylesheet" th:href="@{/assets/css/kaiadmin.min.css}" />
+
+    <style>
+        .pagination-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            padding: 15px 0;
+        }
+
+        .pagination-info {
+            color: #6c757d;
+            font-size: 14px;
+        }
+
+        .pagination-nav {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .pagination-nav button {
+            border: 1px solid #dee2e6;
+            background: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .pagination-nav button:hover:not(:disabled) {
+            background: #f8f9fa;
+            border-color: #adb5bd;
+        }
+
+        .pagination-nav button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .pagination-nav .page-input {
+            width: 60px;
+            text-align: center;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 8px;
+        }
+
+        .page-size-selector {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #6c757d;
+            font-size: 14px;
+        }
+
+        .page-size-selector select {
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 5px 10px;
+            background: white;
+        }
+
+        /* Estilos mejorados para filtros */
+        .filters-card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            border: 1px solid #e8e8e8;
+            margin-bottom: 25px;
+        }
+
+        .filters-header {
+            background: #1a2035;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 10px 10px 0 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .filters-header h6 {
+            margin: 0;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .filters-body {
+            padding: 20px;
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            align-items: end;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            min-width: 180px;
+            flex: 1;
+        }
+
+        .filter-group label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #1a2035;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .filter-group .form-control {
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 10px 12px;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .filter-group .form-control:focus {
+            border-color: #1a2035;
+        }
+
+        .filter-group .form-control::placeholder {
+            color: #adb5bd;
+            font-style: italic;
+        }
+
+        .date-range-group {
+            display: flex;
+            gap: 15px;
+            align-items: end;
+            min-width: 300px;
+        }
+
+        .date-input-wrapper {
+            position: relative;
+            flex: 1;
+        }
+
+        .date-input-wrapper .form-control {
+            padding-left: 35px;
+        }
+
+        .date-input-wrapper .calendar-icon {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6c757d;
+            z-index: 10;
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 10px;
+            align-items: end;
+            min-width: 120px;
+        }
+
+        .btn-filter-clear {
+            background-color: #c7100a;
+            border: none;
+            color: white;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-filter-clear:hover {
+            transform: translateY(-1px);
+            color: white;
+        }
+
+        .btn-filter-refresh {
+            background: linear-gradient(135deg, #00b894 0%, #00cec9 100%);
+            border: none;
+            color: white;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 2px 8px rgba(0, 184, 148, 0.3);
+        }
+
+        .btn-filter-refresh:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 184, 148, 0.4);
+            color: white;
+        }
+
+        .movement-type-select {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 10px 12px;
+            font-size: 0.875rem;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 10px center;
+            background-repeat: no-repeat;
+            background-size: 16px;
+            appearance: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .movement-type-select:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+            outline: none;
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .filter-row {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .filter-group {
+                min-width: 100%;
+            }
+
+            .date-range-group {
+                min-width: 100%;
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .filter-actions {
+                min-width: 100%;
+                justify-content: stretch;
+            }
+
+            .filter-actions button {
+                flex: 1;
+            }
+        }
+
+        /* Indicador de filtros activos */
+        .active-filters-indicator {
+            background: #e3f2fd;
+            border: 1px solid #bbdefb;
+            border-radius: 6px;
+            padding: 8px 12px;
+            margin-top: 10px;
+            font-size: 0.8rem;
+            color: #1976d2;
+            display: none;
+        }
+
+        .active-filters-indicator.show {
+            display: block;
+        }
+
+        /* Estilos adicionales para el modal mejorado */
+        #movementDetailModal .modal-dialog {
+            max-width: 600px;
+        }
+
+        #movementDetailModal .card {
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        #movementDetailModal .card-title {
+            color: #2c3e50;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        #movementDetailModal .alert {
+            border-radius: 6px;
+            border: none;
+            font-size: 0.9rem;
+        }
+
+        #movementDetailModal .alert-info {
+            background-color: #e3f2fd;
+            color: #1565c0;
+        }
+
+        #movementDetailModal small {
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        #movementDetailModal strong {
+            color: #2c3e50;
+            font-weight: 600;
+        }
+
+        #movementDetailModal .text-success {
+            color: #27ae60 !important;
+        }
+
+        #movementDetailModal .text-danger {
+            color: #e74c3c !important;
+        }
+
+        #movementDetailModal .text-warning {
+            color: #f39c12 !important;
+        }
+
+        #movementDetailModal .btn-outline-primary {
+            border-color: #3498db;
+            color: #3498db;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+        }
+
+        #movementDetailModal .btn-outline-primary:hover {
+            background-color: #3498db;
+            border-color: #3498db;
+            color: white;
+        }
+
+        /* Animación suave para el contenido del modal */
+        #movementDetailModal .modal-body {
+            animation: fadeInUp 0.3s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Mejoras para dispositivos móviles */
+        @media (max-width: 768px) {
+            #movementDetailModal .modal-dialog {
+                margin: 10px;
+                max-width: calc(100% - 20px);
+            }
+
+            #movementDetailModal .row .col-md-6 {
+                margin-bottom: 1rem;
+            }
+
+            #movementDetailModal .d-flex.justify-content-between {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+    </style>
+    <script th:inline="javascript">
+        window.userRole = /*[[${userRole}]]*/ 'VISITOR';
+        window.isAdmin = /*[[${isAdmin}]]*/ false;
+    </script>
+</head>
+<body>
+<div class="wrapper">
+    <div th:replace="~{index :: sidebar}"></div>
+
+    <div class="main-panel">
+        <div th:replace="~{index :: main-header}"></div>
+
+        <div class="container">
+            <div class="page-inner">
+                <div class="d-flex align-items-left align-items-md-center flex-column flex-md-row pt-2 pb-4">
+                    <div>
+                        <h3 class="fw-bold mb-3">Entradas y Salidas de Productos</h3>
+                        <h6 class="op-7 mb-2">Registro de movimientos con fechas y usuarios responsables</h6>
+                    </div>
+                    <div class="ms-md-auto py-2 py-md-0">
+                        <button class="btn btn-primary btn-round" onclick="refreshAuditData()">
+                            <i class="fas fa-sync-alt"></i> Actualizar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filtros Mejorados -->
+                <div class="filters-card">
+                    <div class="filters-header">
+                        <h6>
+                            <i class="fas fa-filter"></i>
+                            Filtros de Búsqueda
+                        </h6>
+                        <button class="btn btn-sm btn-outline-light" onclick="toggleFilters()">
+                            <i class="fas fa-chevron-up" id="filterToggleIcon"></i>
+                        </button>
+                    </div>
+                    <div class="filters-body" id="filtersBody">
+                        <div class="filter-row">
+                            <div class="filter-group">
+                                <label for="productFilter">
+                                    <i class="fas fa-box text-primary"></i>
+                                    Producto
+                                </label>
+                                <input type="text" id="productFilter" class="form-control"
+                                       placeholder="Buscar por nombre de producto...">
+                            </div>
+
+                            <div class="filter-group">
+                                <label for="userFilter">
+                                    <i class="fas fa-user text-success"></i>
+                                    Usuario Responsable
+                                </label>
+                                <input type="text" id="userFilter" class="form-control"
+                                       placeholder="Buscar por usuario...">
+                            </div>
+
+                            <div class="filter-group">
+                                <label for="movementFilter">
+                                    <i class="fas fa-exchange-alt text-warning"></i>
+                                    Tipo de Movimiento
+                                </label>
+                                <select id="movementFilter" class="movement-type-select">
+                                    <option value="">📋 Todos los movimientos</option>
+                                    <option value="stock_only">📦 Solo cambios de STOCK</option>
+                                    <option value="creation">✅ Solo entradas (creación)</option>
+                                    <option value="deletion">❌ Solo salidas (eliminación)</option>
+                                </select>
+                            </div>
+
+                            <div class="date-range-group">
+                                <div class="filter-group">
+                                    <label for="dateFrom">
+                                        <i class="fas fa-calendar-alt text-info"></i>
+                                        Fecha Desde
+                                    </label>
+                                    <div class="date-input-wrapper">
+                                        <i class="fas fa-calendar calendar-icon"></i>
+                                        <input type="date" id="dateFrom" class="form-control">
+                                    </div>
+                                </div>
+                                <div class="filter-group">
+                                    <label for="dateTo">
+                                        <i class="fas fa-calendar-check text-info"></i>
+                                        Fecha Hasta
+                                    </label>
+                                    <div class="date-input-wrapper">
+                                        <i class="fas fa-calendar calendar-icon"></i>
+                                        <input type="date" id="dateTo" class="form-control">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="filter-actions">
+                                <button class="btn-filter-clear" onclick="clearFilters()">
+                                    <i class="fas fa-times"></i>
+                                    Limpiar
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="active-filters-indicator" id="activeFiltersIndicator">
+                            <i class="fas fa-info-circle"></i>
+                            <span id="activeFiltersText">Filtros activos: </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="card card-round">
+                            <div class="card-header">
+                                <div class="card-head-row">
+                                    <div class="card-title">Historial de Movimientos</div>
+                                    <div class="ms-md-auto py-2 py-md-0 me-3">
+                                        <span class="text-muted" id="lastUpdated">Cargando...</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table id="auditTable" class="display table table-striped table-hover">
+                                        <thead>
+                                        <tr>
+                                            <th>Fecha/Hora</th>
+                                            <th>Usuario Responsable</th>
+                                            <th>Producto</th>
+                                            <th>Tipo de Movimiento</th>
+                                            <th>Acciones</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody id="auditTableBody">
+                                        <!-- Los registros se cargarán aquí dinámicamente -->
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <!-- Controles de Paginación -->
+                                <div class="pagination-controls">
+                                    <div class="pagination-info">
+                                        <span id="paginationInfo">Mostrando 0 - 0 de 0 registros</span>
+                                    </div>
+
+                                    <div class="pagination-nav">
+                                        <button id="firstPageBtn" title="Primera página">
+                                            <i class="fas fa-angle-double-left"></i>
+                                        </button>
+                                        <button id="prevPageBtn" title="Página anterior">
+                                            <i class="fas fa-angle-left"></i>
+                                        </button>
+
+                                        <span>Página</span>
+                                        <input type="number" id="currentPageInput" class="page-input" min="1" value="1">
+                                        <span>de <span id="totalPages">1</span></span>
+
+                                        <button id="nextPageBtn" title="Página siguiente">
+                                            <i class="fas fa-angle-right"></i>
+                                        </button>
+                                        <button id="lastPageBtn" title="Última página">
+                                            <i class="fas fa-angle-double-right"></i>
+                                        </button>
+                                    </div>
+
+                                    <div class="page-size-selector">
+                                        <span>Mostrar</span>
+                                        <select id="pageSizeSelect">
+                                            <option value="10" selected>10</option>
+                                            <option value="25">25</option>
+                                            <option value="50">50</option>
+                                            <option value="100">100</option>
+                                        </select>
+                                        <span>por página</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer class="footer">
+            <div class="container-fluid d-flex justify-content-between">
+                <nav class="pull-left">
+                    <ul class="nav">
+                        <li class="nav-item">
+                            <a class="nav-link" href="http://www.themekita.com">ThemeKita</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#">Help</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#">Licenses</a>
+                        </li>
+                    </ul>
+                </nav>
+                <div class="copyright">
+                    2024, made with <i class="fa fa-heart heart text-danger"></i> by
+                    <a href="http://www.themekita.com">ThemeKita</a>
+                </div>
+                <div>
+                    Distributed by
+                    <a target="_blank" href="https://themewagon.com/">ThemeWagon</a>.
+                </div>
+            </div>
+        </footer>
+    </div>
+</div>
+
+<!-- Modal mejorado para detalles del movimiento -->
+<div class="modal fade" id="movementDetailModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title">
+                    <i class="fas fa-clipboard-list me-2"></i>
+                    Detalles del Movimiento
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body pt-0" id="movementDetailBody">
+                <!-- Contenido dinámico se carga aquí -->
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Cargando...</span>
+                    </div>
+                    <p class="text-muted mt-2">Cargando detalles...</p>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!--   Core JS Files   -->
+<script th:src="@{/assets/js/core/jquery-3.7.1.min.js}"></script>
+<script th:src="@{/assets/js/core/popper.min.js}"></script>
+<script th:src="@{/assets/js/core/bootstrap.min.js}"></script>
+
+<!-- jQuery Scrollbar -->
+<script th:src="@{/assets/js/plugin/jquery-scrollbar/jquery.scrollbar.min.js}"></script>
+
+<!-- Datatables -->
+<script th:src="@{/assets/js/plugin/datatables/datatables.min.js}"></script>
+
+<!-- Sweet Alert -->
+<script th:src="@{/assets/js/plugin/sweetalert/sweetalert.min.js}"></script>
+
+<!-- Kaiadmin JS -->
+<script th:src="@{/assets/js/kaiadmin.min.js}"></script>
+
+<!-- Script mejorado para movimientos -->
+<script>
+    $(document).ready(function() {
+        let currentPage = 0;
+        let pageSize = 10;
+        let totalElements = 0;
+        let totalPages = 0;
+
+        // Cargar datos iniciales
+        loadMovementData();
+        updateLastUpdatedTime();
+        updateActiveFiltersIndicator();
+
+        function loadMovementData() {
+            const filters = getFilters();
+            let url;
+
+            // Decidir qué endpoint usar según el filtro
+            if (filters.movementType === 'stock_only') {
+                // NUEVO: Usar endpoint específico para movimientos de stock
+                url = `/api/auditoria/products/stock-movements?page=${currentPage}&size=${pageSize}&sort=revision,desc`;
+            } else {
+                // MANTENER: Usar endpoint original para todo lo demás
+                url = `/api/auditoria/products?page=${currentPage}&size=${pageSize}&sort=revision,desc`;
+            }
+
+            // Agregar filtros comunes
+            if (filters.productName) {
+                url += `&productName=${encodeURIComponent(filters.productName)}`;
+            }
+            if (filters.username) {
+                url += `&username=${encodeURIComponent(filters.username)}`;
+            }
+            if (filters.dateFrom) {
+                url += `&dateFrom=${filters.dateFrom}T00:00:00`;
+            }
+            if (filters.dateTo) {
+                url += `&dateTo=${filters.dateTo}T23:59:59`;
+            }
+
+            // Para filtros específicos del endpoint original
+            if (filters.movementType === 'creation') {
+                url += `&revType=0`;
+            } else if (filters.movementType === 'deletion') {
+                url += `&revType=2`;
+            }
+
+            $.ajax({
+                url: url,
+                type: 'GET',
+                success: function(response) {
+                    renderMovementData(response.content);
+                    updatePaginationInfo(response);
+                    updateLastUpdatedTime();
+                    updateActiveFiltersIndicator();
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error al cargar datos:', error);
+                    showSampleData();
+                }
+            });
+        }
+
+        function showSampleData() {
+            const sampleData = [
+                {
+                    revision: 1,
+                    revisionDate: '2024-01-15 10:30:45',
+                    username: 'admin',
+                    productId: 1,
+                    productName: 'Laptop Dell XPS - Stock: 50 → 45',
+                    revType: 1
+                },
+                {
+                    revision: 2,
+                    revisionDate: '2024-01-15 11:15:20',
+                    username: 'user1',
+                    productId: 2,
+                    productName: 'Mouse Logitech',
+                    revType: 0
+                },
+                {
+                    revision: 3,
+                    revisionDate: '2024-01-15 14:22:10',
+                    username: 'admin',
+                    productId: 3,
+                    productName: 'Teclado Mecánico - Stock: 20 → 35',
+                    revType: 1
+                },
+                {
+                    revision: 4,
+                    revisionDate: '2024-01-16 09:45:30',
+                    username: 'user2',
+                    productId: 2,
+                    productName: 'Mouse Logitech',
+                    revType: 2
+                },
+                {
+                    revision: 5,
+                    revisionDate: '2024-01-16 16:18:55',
+                    username: 'admin',
+                    productId: 4,
+                    productName: 'Monitor Samsung - Stock: 10 → 8',
+                    revType: 1
+                }
+            ];
+
+            const filters = getFilters();
+            let filteredData = sampleData;
+
+            // Aplicar filtro de movimiento si está seleccionado
+            if (filters.movementType === 'stock_only') {
+                filteredData = sampleData.filter(record =>
+                    record.revType === 0 ||
+                    record.revType === 2 ||
+                    (record.revType === 1 && record.productName.includes('Stock:'))
+                );
+            } else if (filters.movementType === 'creation') {
+                filteredData = sampleData.filter(record => record.revType === 0);
+            } else if (filters.movementType === 'deletion') {
+                filteredData = sampleData.filter(record => record.revType === 2);
+            }
+
+            renderMovementData(filteredData);
+            const mockResponse = {
+                content: filteredData,
+                totalElements: filteredData.length,
+                totalPages: 1,
+                number: 0,
+                size: pageSize,
+                numberOfElements: filteredData.length
+            };
+            updatePaginationInfo(mockResponse);
+            updateActiveFiltersIndicator();
+        }
+
+        function getFilters() {
+            return {
+                productName: $('#productFilter').val().trim(),
+                username: $('#userFilter').val().trim(),
+                dateFrom: $('#dateFrom').val(),
+                dateTo: $('#dateTo').val(),
+                movementType: $('#movementFilter').val()
+            };
+        }
+
+        function updateActiveFiltersIndicator() {
+            const filters = getFilters();
+            const activeFilters = [];
+
+            if (filters.productName) activeFilters.push(`Producto: "${filters.productName}"`);
+            if (filters.username) activeFilters.push(`Usuario: "${filters.username}"`);
+            if (filters.dateFrom) activeFilters.push(`Desde: ${filters.dateFrom}`);
+            if (filters.dateTo) activeFilters.push(`Hasta: ${filters.dateTo}`);
+            if (filters.movementType) {
+                const movementText = $('#movementFilter option:selected').text();
+                activeFilters.push(`Tipo: ${movementText}`);
+            }
+
+            const indicator = $('#activeFiltersIndicator');
+            const indicatorText = $('#activeFiltersText');
+
+            if (activeFilters.length > 0) {
+                indicatorText.text(`Filtros activos: ${activeFilters.join(', ')}`);
+                indicator.addClass('show');
+            } else {
+                indicator.removeClass('show');
+            }
+        }
+
+        function renderMovementData(records) {
+            const tableBody = $('#auditTableBody');
+            tableBody.empty();
+
+            if (records.length === 0) {
+                tableBody.append(`
+                    <tr>
+                        <td colspan="5" class="text-center text-muted">
+                            No se encontraron movimientos
+                        </td>
+                    </tr>
+                `);
+                return;
+            }
+
+            records.forEach(record => {
+                const formattedDate = formatDateTime(record.revisionDate);
+                const movementBadge = getMovementBadge(record.revType, record.productName);
+
+                const row = `
+                    <tr>
+                        <td>${formattedDate}</td>
+                        <td>${record.username || 'Sistema'}</td>
+                        <td>${record.productName || 'N/A'}</td>
+                        <td>${movementBadge}</td>
+                        <td>
+                            <button class="btn btn-icon btn-round btn-info btn-sm"
+                                    onclick="showMovementDetail(${record.revision}, ${record.productId}, '${(record.productName || '').replace(/'/g, "\\'")}', ${record.revType}, '${record.username || 'Sistema'}', '${record.revisionDate}')"
+                                    title="Ver detalles">
+                                <i class="fas fa-eye fa-xs"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+                tableBody.append(row);
+            });
+        }
+
+        function getMovementBadge(revType, productName) {
+            // Si es una actualización y contiene información de stock, es un movimiento de inventario
+            if (revType === 1 && productName && productName.includes('Stock:')) {
+                return '<span class="badge bg-primary">Movimiento de Stock</span>';
+            }
+
+            switch(revType) {
+                case 0:
+                    return '<span class="badge bg-success">Entrada (Creación)</span>';
+                case 1:
+                    return '<span class="badge bg-warning">Actualización</span>';
+                case 2:
+                    return '<span class="badge bg-danger">Salida (Eliminación)</span>';
+                default:
+                    return '<span class="badge bg-secondary">Desconocido</span>';
+            }
+        }
+
+        function formatDateTime(dateTime) {
+            if (typeof dateTime === 'string') {
+                return dateTime;
+            }
+
+            const date = new Date(dateTime);
+            return date.toLocaleString('es-ES', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }
+
+        function updatePaginationInfo(response) {
+            totalElements = response.totalElements;
+            totalPages = response.totalPages;
+            currentPage = response.number;
+
+            const startItem = totalElements > 0 ? (currentPage * pageSize) + 1 : 0;
+            const endItem = Math.min((currentPage + 1) * pageSize, totalElements);
+
+            $('#paginationInfo').text(`Mostrando ${startItem} - ${endItem} de ${totalElements} registros`);
+            $('#currentPageInput').val(currentPage + 1);
+            $('#totalPages').text(totalPages);
+
+            $('#firstPageBtn').prop('disabled', currentPage === 0);
+            $('#prevPageBtn').prop('disabled', currentPage === 0);
+            $('#nextPageBtn').prop('disabled', currentPage >= totalPages - 1);
+            $('#lastPageBtn').prop('disabled', currentPage >= totalPages - 1);
+
+            $('#currentPageInput').attr('max', totalPages);
+        }
+
+        function updateLastUpdatedTime() {
+            const now = new Date();
+            $('#lastUpdated').text(`Última actualización: ${formatDateTime(now.getTime())}`);
+        }
+
+        function goToPage(pageNumber) {
+            if (pageNumber < 0 || pageNumber >= totalPages || pageNumber === currentPage) {
+                return;
+            }
+            currentPage = pageNumber;
+            loadMovementData();
+        }
+
+        function clearFilters() {
+            $('#productFilter').val('');
+            $('#userFilter').val('');
+            $('#movementFilter').val('');
+            $('#dateFrom').val('');
+            $('#dateTo').val('');
+            currentPage = 0;
+            loadMovementData();
+        }
+
+        function refreshMovementData() {
+            loadMovementData();
+            swal('Actualizado', 'Los datos han sido actualizados', 'success');
+        }
+
+        function toggleFilters() {
+            const filtersBody = $('#filtersBody');
+            const toggleIcon = $('#filterToggleIcon');
+
+            if (filtersBody.is(':visible')) {
+                filtersBody.slideUp(300);
+                toggleIcon.removeClass('fa-chevron-up').addClass('fa-chevron-down');
+            } else {
+                filtersBody.slideDown(300);
+                toggleIcon.removeClass('fa-chevron-down').addClass('fa-chevron-up');
+            }
+        }
+
+        // Event Listeners para paginación
+        $('#firstPageBtn').click(() => goToPage(0));
+        $('#prevPageBtn').click(() => goToPage(currentPage - 1));
+        $('#nextPageBtn').click(() => goToPage(currentPage + 1));
+        $('#lastPageBtn').click(() => goToPage(totalPages - 1));
+
+        $('#currentPageInput').on('change', function() {
+            const pageNumber = parseInt($(this).val()) - 1;
+            if (pageNumber >= 0 && pageNumber < totalPages) {
+                goToPage(pageNumber);
+            } else {
+                $(this).val(currentPage + 1);
+            }
+        });
+
+        $('#pageSizeSelect').on('change', function() {
+            pageSize = parseInt($(this).val());
+            currentPage = 0;
+            loadMovementData();
+        });
+
+        // Filtros con debounce
+        let filterTimeout;
+        $('.filter-row input, .filter-row select').on('input change', function() {
+            clearTimeout(filterTimeout);
+            filterTimeout = setTimeout(() => {
+                currentPage = 0;
+                loadMovementData();
+            }, 500);
+        });
+
+        // Funciones globales
+        window.showMovementDetail = showMovementDetail;
+        window.clearFilters = clearFilters;
+        window.refreshAuditData = refreshMovementData;
+        window.toggleFilters = toggleFilters;
+    });
+
+    // Función mejorada para mostrar detalles del movimiento
+    function showMovementDetail(revision, productId, productName, revType, username, revisionDate) {
+        const modalBody = $('#movementDetailBody');
+
+        // Determinar el tipo de movimiento y su descripción
+        const movementInfo = getMovementInfo(revType, productName);
+
+        // Formatear la fecha de manera más legible
+        const formattedDate = formatDetailedDateTime(revisionDate);
+
+        // Construir el contenido del modal de forma más informativa
+        const modalContent = `
+            <div class="row">
+                <div class="col-12">
+                    <div class="card border-0 bg-light">
+                        <div class="card-body">
+                            <h6 class="card-title mb-3">
+                                <i class="${movementInfo.icon} me-2"></i>
+                                ${movementInfo.title}
+                            </h6>
+
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <small class="text-muted d-block">Producto</small>
+                                    <strong>${productName || 'N/A'}</strong>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <small class="text-muted d-block">Usuario Responsable</small>
+                                    <strong>${username || 'Sistema'}</strong>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <small class="text-muted d-block">Fecha y Hora</small>
+                                    <strong>${formattedDate}</strong>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <small class="text-muted d-block">Revisión</small>
+                                    <strong>#${revision}</strong>
+                                </div>
+                            </div>
+
+                            ${movementInfo.stockInfo ? `
+                                <hr class="my-3">
+                                <div class="alert alert-info mb-0">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    <strong>Información del Stock:</strong><br>
+                                    ${movementInfo.stockInfo}
+                                </div>
+                            ` : ''}
+
+                            ${movementInfo.description ? `
+                                <hr class="my-3">
+                                <div class="text-muted">
+                                    <small><strong>Descripción:</strong> ${movementInfo.description}</small>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-3">
+                <div class="col-12">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">
+                            <i class="fas fa-clock me-1"></i>
+                            Registro del sistema de auditoría
+                        </small>
+                        <div>
+                            <button class="btn btn-sm btn-outline-primary" onclick="loadProductHistory(${productId})">
+                                <i class="fas fa-history me-1"></i>
+                                Ver Historial Completo
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        modalBody.html(modalContent);
+        $('#movementDetailModal').modal('show');
+    }
+
+    // Función auxiliar para obtener información del movimiento
+    function getMovementInfo(revType, productName) {
+        let info = {
+            icon: 'fas fa-question-circle',
+            title: 'Movimiento Desconocido',
+            description: '',
+            stockInfo: null
+        };
+
+        // Detectar si hay información de stock en el nombre del producto
+        const stockMatch = productName && productName.match(/Stock:\s*(\d+)\s*→\s*(\d+)/);
+
+        switch(revType) {
+            case 0: // Creación
+                info.icon = 'fas fa-plus-circle text-success';
+                info.title = 'Entrada de Producto (Creación)';
+                info.description = 'Se agregó un nuevo producto al inventario.';
+
+                // Si podemos extraer stock inicial
+                if (stockMatch) {
+                    info.stockInfo = `Stock inicial registrado: ${stockMatch[2]} unidades`;
+                }
+                break;
+
+            case 1: // Modificación
+                info.icon = 'fas fa-edit text-warning';
+
+                if (stockMatch) {
+                    const previousStock = parseInt(stockMatch[1]);
+                    const newStock = parseInt(stockMatch[2]);
+                    const difference = newStock - previousStock;
+
+                    info.title = 'Movimiento de Inventario';
+                    info.description = difference > 0
+                        ? 'Se incrementó el stock del producto.'
+                        : 'Se redujo el stock del producto.';
+
+                    info.stockInfo = `
+                        Stock anterior: ${previousStock} unidades<br>
+                        Stock actual: ${newStock} unidades<br>
+                        <span class="fw-bold ${difference > 0 ? 'text-success' : 'text-danger'}">
+                            ${difference > 0 ? '+' : ''}${difference} unidades
+                        </span>
+                    `;
+                } else {
+                    info.title = 'Actualización de Producto';
+                    info.description = 'Se modificaron datos del producto (nombre, precio, categoría, etc.)';
+                }
+                break;
+
+            case 2: // Eliminación
+                info.icon = 'fas fa-trash text-danger';
+                info.title = 'Salida de Producto (Eliminación)';
+                info.description = 'El producto fue eliminado del inventario.';
+
+                if (stockMatch) {
+                    info.stockInfo = `Stock al momento de eliminación: ${stockMatch[1]} unidades`;
+                }
+                break;
+        }
+
+        return info;
+    }
+
+    // Función mejorada para formatear fecha y hora
+    function formatDetailedDateTime(dateTime) {
+        if (typeof dateTime === 'string') {
+            // Si ya es string formateado, parsearlo
+            const date = new Date(dateTime);
+            if (!isNaN(date.getTime())) {
+                return formatDateObject(date);
+            }
+            return dateTime;
+        }
+
+        const date = new Date(dateTime);
+        return formatDateObject(date);
+    }
+
+    function formatDateObject(date) {
+        const options = {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            timeZoneName: 'short'
+        };
+
+        return date.toLocaleDateString('es-ES', options);
+    }
+
+    // Nueva función para cargar historial completo del producto
+    function loadProductHistory(productId) {
+        // Cerrar modal actual
+        $('#movementDetailModal').modal('hide');
+
+        // Filtrar por producto específico
+        $('#productFilter').val(''); // Limpiar filtro de texto
+
+        // Hacer una consulta específica para este producto
+        // Esto requeriría un endpoint adicional, por ahora mostramos una notificación
+        swal({
+            title: 'Historial del Producto',
+            text: `Mostrando historial completo del producto ID: ${productId}`,
+            icon: 'info',
+            buttons: {
+                cancel: 'Cerrar',
+                confirm: {
+                    text: 'Filtrar en la tabla',
+                    value: true,
+                    visible: true,
+                    className: 'btn-primary'
+                }
+            }
+        }).then((willFilter) => {
+            if (willFilter) {
+                // Aplicar filtro en la tabla actual
+                // Esto es una aproximación ya que no tenemos filtro por ID específico
+                loadMovementData();
+            }
+        });
+    }
+</script>
+</body>
+</html>

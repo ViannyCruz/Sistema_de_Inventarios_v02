@@ -5,6 +5,8 @@ import com.sistema_de_inventarios_v02.dto.UpdateProductDTO;
 import com.sistema_de_inventarios_v02.dto.ProductResponseDTO;
 import com.sistema_de_inventarios_v02.dto.ProductSummaryDTO;
 import com.sistema_de_inventarios_v02.dto.StockUpdateDTO;
+import com.sistema_de_inventarios_v02.model.Product;
+import com.sistema_de_inventarios_v02.service.ProductHistoryService;
 import com.sistema_de_inventarios_v02.service.ProductService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
@@ -29,10 +31,12 @@ import java.util.Map;
 public class ProductController {
 
     private final ProductService productService;
+    private final ProductHistoryService productHistoryService;
 
     @Autowired
-    public ProductController(ProductService productService) {
+    public ProductController(ProductService productService, ProductHistoryService productHistoryService) {
         this.productService = productService;
+        this.productHistoryService = productHistoryService;
     }
 
     @PostMapping
@@ -220,5 +224,29 @@ public class ProductController {
                 "service", "ProductService",
                 "timestamp", String.valueOf(System.currentTimeMillis())
         ));
+    }
+
+
+
+
+    // AUDITORIA
+    @GetMapping("/{id}/history")
+    public ResponseEntity<List<Product>> getProductHistory(@PathVariable Long id) {
+        List<Product> history = productHistoryService.getProductHistory(id);
+        return ResponseEntity.ok(history);
+    }
+
+    @GetMapping("/{id}/history/{revisionId}")
+    public ResponseEntity<Product> getProductAtRevision(
+            @PathVariable Long id,
+            @PathVariable Long revisionId) {
+        Product product = productHistoryService.getProductAtRevision(id, revisionId);
+        return ResponseEntity.ok(product);
+    }
+
+    @GetMapping("/{id}/revisions")
+    public ResponseEntity<List<Number>> getProductRevisions(@PathVariable Long id) {
+        List<Number> revisions = productHistoryService.getProductRevisionsList(id);
+        return ResponseEntity.ok(revisions);
     }
 }

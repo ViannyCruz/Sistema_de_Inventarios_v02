@@ -41,7 +41,7 @@ public class Product {
     private Integer stock;
 
     @Column(name = "minimum_stock", nullable = true)
-    @Min(value = 0, message = "El stock mínimo no puede ser negativo")
+    @Min(value = 10, message = "El stock mínimo no puede ser negativo")
     private Integer minimumStock;
 
     public Product() {
@@ -53,7 +53,7 @@ public class Product {
         this.category = category;
         this.price = price;
         this.stock = stock;
-        this.minimumStock = 0;
+        this.minimumStock = 10;
     }
 
     public Product(Long id, String name, String description, String category, BigDecimal price, Integer stock, Integer minimumStock) {
@@ -63,7 +63,7 @@ public class Product {
         this.category = category;
         this.price = price;
         this.stock = stock;
-        this.minimumStock = 0;
+        this.minimumStock = 10;
     }
 
     public Long getId() {

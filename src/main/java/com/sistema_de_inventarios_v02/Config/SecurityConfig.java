@@ -78,10 +78,15 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
                         .requestMatchers("/api/auth/**").authenticated()
                         .requestMatchers("/api/inventory/**").authenticated()
+                        .requestMatchers("/api/auditoria").authenticated()
 
                         .requestMatchers("/api/debug/**").permitAll()
 
+                        .requestMatchers("/api/inventory/**").authenticated()
+
                         .requestMatchers("/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/productos/crear", "/productos/editar/**", "/productos/eliminar/**").hasAnyRole("ADMIN", "USER")
+                        .requestMatchers("/categorias/crear", "/categorias/editar/**", "/categorias/eliminar/**").hasAnyRole("ADMIN", "USER")
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/usuarios/**").hasRole("ADMIN")
                         .requestMatchers("/reportes/admin/**").hasRole("ADMIN")

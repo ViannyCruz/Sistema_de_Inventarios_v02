@@ -70,6 +70,11 @@ public class SecurityConfig {
                         .ignoringRequestMatchers("/api/**", "/custom-logout")
                 )
                 .authorizeHttpRequests(authz -> authz
+                        .requestMatchers("/actuator/health", "/actuator/prometheus", "/actuator/info").permitAll()
+
+                        .requestMatchers("/actuator/**").hasRole("ADMIN")
+
+
                         .requestMatchers("/css/**", "/js/**", "/images/**", "/assets/**", "/favicon.ico").permitAll()
                         .requestMatchers("/static/**", "/webjars/**", "/resources/**").permitAll()
 

@@ -1,19 +1,4 @@
-version: '3.8'
-
 services:
-  app:
-    build: .
-    ports:
-      - "8080:8080"
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/sistemainventario?useSSL=false&allowPublicKeyRetrieval=true
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: rootpass
-      SPRING_FLYWAY_ENABLED: "true"
-    depends_on:
-      db:
-        condition: service_healthy
-
   db:
     image: mysql:8.0.33
     command: --default-authentication-plugin=mysql_native_password
@@ -27,6 +12,81 @@ services:
       retries: 10
     volumes:
       - mysql_data:/var/lib/mysql
+    networks:
+      - observability-net
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    command: [ "--config=/etc/otel-collector-config.yaml" ]
+    volumes:
+      - ./data/otel/otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP - IMPORTANTE para Spring Boot
+      - "8889:8889"   # Prometheus metrics
+      - "13133:13133" # Health check
+    networks:
+      - observability-net
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.50
+    container_name: jaeger
+    restart: unless-stopped
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686"
+      - "14250:14250"
+      - "14268:14268"
+    volumes:
+      - jaeger_data:/tmp
+    command:
+      - "--memory.max-traces=50000"
+    networks:
+      - observability-net
+
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    container_name: prometheus
+    restart: unless-stopped
+    volumes:
+      - ./data/prometheus/config:/etc/prometheus
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yaml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=200h'
+    ports:
+      - '9090:9090'
+    depends_on:
+      - otel-collector
+    networks:
+      - observability-net
+
+  grafana:
+    image: grafana/grafana-oss:10.1.0
+    container_name: grafana
+    restart: unless-stopped
+    volumes:
+      - ./data/grafana:/var/lib/grafana
+      - ./data/grafana/provisioning:/etc/grafana/provisioning  # Para datasources
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SERVER_DOMAIN=localhost
+      - GF_USERS_ALLOW_SIGN_UP=false
+    ports:
+      - '3000:3000'
+    depends_on:
+      - prometheus
+    networks:
+      - observability-net
 
 volumes:
   mysql_data:
+  jaeger_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  observability-net:
+    driver: bridge

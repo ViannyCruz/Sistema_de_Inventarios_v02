@@ -60,3 +60,28 @@ keycloak:
   role-mappings:
     realm-access-roles: true
     resource-access-roles: true
+
+
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include:
+          - prometheus
+          - health
+          - info
+  endpoint:
+    prometheus:
+      enabled: true
+  tracing:
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      endpoint: "http://otel-collector:4318/v1/traces"
+
+otel:
+  exporter:
+    otlp:
+      protocol: http/protobuf

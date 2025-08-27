@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter>
+    <!-- Incluir todas las verificaciones de seguridad -->
+    <Match>
+        <Bug category="SECURITY"/>
+    </Match>
+    <Match>
+        <Bug category="BAD_PRACTICE"/>
+    </Match>
+
+    <!-- FindSecBugs específicas para Spring Boot -->
+    <Match>
+        <Bug pattern="SQL_INJECTION_JPA"/>
+    </Match>
+    <Match>
+        <Bug pattern="SPRING_CSRF_PROTECTION_DISABLED"/>
+    </Match>
+    <Match>
+        <Bug pattern="SPRING_ENDPOINT_PASSWORD_IN_URL"/>
+    </Match>
+    <Match>
+        <Bug pattern="JWT_ALGORITHM_NONE"/>
+    </Match>
+
+    <!-- Excluir clases de configuración de test -->
+    <Match>
+        <Class name="~.*Test.*Config.*"/>
+        <Bug pattern="DM_EXIT"/>
+    </Match>
+
+    <!-- Permitir @SuppressWarnings en tests -->
+    <Match>
+        <Or>
+            <Class name="~.*Test$"/>
+            <Class name="~.*Tests$"/>
+            <Class name="~.*IT$"/>
+            <Class name="~.*E2E.*"/>
+        </Or>
+        <Bug pattern="SE_BAD_FIELD"/>
+    </Match>
+</FindBugsFilter>

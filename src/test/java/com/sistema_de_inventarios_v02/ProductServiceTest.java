@@ -61,7 +61,7 @@ public class ProductServiceTest {
                 "Laptop de alta gama",
                 "Electrónicos",
                 new BigDecimal("1200.00"),
-                10,
+                15,
                 5
         );
 
@@ -129,7 +129,7 @@ public class ProductServiceTest {
         void getAllProductsSummary_ShouldReturnListOfProductSummary() {
             // Arrange
             Product product1 = new Product("Laptop", "Laptop de alta gama", "Electrónicos",
-                    new BigDecimal("1200.00"), 10, 5);
+                    new BigDecimal("1200.00"), 15, 5);
             product1.setId(1L);
 
             Product product2 = new Product("Mouse", "Mouse inalámbrico", "Electrónicos",
@@ -150,7 +150,7 @@ public class ProductServiceTest {
             assertEquals("Laptop", firstProduct.getName());
             assertEquals("Electrónicos", firstProduct.getCategory());
             assertEquals(new BigDecimal("1200.00"), firstProduct.getPrice());
-            assertEquals(10, firstProduct.getStock());
+            assertEquals(15, firstProduct.getStock());
             assertEquals("IN_STOCK", firstProduct.getStockStatus());
 
             verify(productRepository, times(1)).findAll();

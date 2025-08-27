@@ -42,12 +42,12 @@ class ProductRepositoryTest {
         productRepository.deleteAll();
         entityManager.flush();
 
-        // Crear productos de prueba con stock valido
-        laptop = createProduct("Laptop Gaming", "Electronics", BigDecimal.valueOf(1500.0), 5, 3);
-        mouse = createProduct("Mouse Inalámbrico", "Electronics", BigDecimal.valueOf(25.0), 15, 5);
-        keyboard = createProduct("Teclado Mecánico", "Electronics", BigDecimal.valueOf(80.0), 2, 5); // Stock bajo
-        monitor = createProduct("Monitor 4K", "Electronics", BigDecimal.valueOf(300.0), 0, 2); // Sin stock
-        outOfStockProduct = createProduct("Producto Agotado", "Office", BigDecimal.valueOf(50.0), 0, 10); // Stock 0 en lugar de null
+        // Crear productos de prueba con valores válidos (minimumStock >= 10)
+        laptop = createValidProduct("Laptop Gaming", "Electronics", BigDecimal.valueOf(1500.0), 5, 15);
+        mouse = createValidProduct("Mouse Inalámbrico", "Electronics", BigDecimal.valueOf(25.0), 15, 10);
+        keyboard = createValidProduct("Teclado Mecánico", "Electronics", BigDecimal.valueOf(80.0), 2, 20); // Stock bajo
+        monitor = createValidProduct("Monitor 4K", "Electronics", BigDecimal.valueOf(300.0), 0, 12); // Sin stock
+        outOfStockProduct = createValidProduct("Producto Agotado", "Office", BigDecimal.valueOf(50.0), 0, 11);
 
         // Persistir productos
         entityManager.persistAndFlush(laptop);
@@ -57,13 +57,40 @@ class ProductRepositoryTest {
         entityManager.persistAndFlush(outOfStockProduct);
     }
 
-    private Product createProduct(String name, String category, BigDecimal price, Integer stock, Integer minimumStock) {
+    /**
+     * Crea un producto con valores válidos garantizados
+     * Maneja todos los casos edge que pueden causar violaciones de validación
+     */
+    private Product createValidProduct(String name, String category, BigDecimal price, Integer stock, Integer minimumStock) {
         Product product = new Product();
-        product.setName(name);
-        product.setCategory(category);
-        product.setPrice(price);
-        product.setStock(stock);
-        product.setMinimumStock(minimumStock);
+
+        // Validar y establecer nombre
+        product.setName(name != null && !name.trim().isEmpty() ? name.trim() : "Producto Default");
+
+        // Validar y establecer categoría
+        product.setCategory(category != null && !category.trim().isEmpty() ? category.trim() : "General");
+
+        // Validar y establecer precio
+        if (price != null && price.compareTo(BigDecimal.ZERO) >= 0) {
+            product.setPrice(price);
+        } else {
+            product.setPrice(BigDecimal.ZERO);
+        }
+
+        // Validar y establecer stock - debe ser >= 0
+        if (stock != null && stock >= 0) {
+            product.setStock(stock);
+        } else {
+            product.setStock(0);
+        }
+
+        // Validar y establecer stock mínimo - debe ser >= 10 según la entidad Product
+        if (minimumStock != null && minimumStock >= 10) {
+            product.setMinimumStock(minimumStock);
+        } else {
+            product.setMinimumStock(10); // Valor mínimo permitido por la validación @Min(10)
+        }
+
         return product;
     }
 
@@ -83,7 +110,7 @@ class ProductRepositoryTest {
         @Test
         @DisplayName("Debe encontrar multiples productos con nombre similar")
         void findByNameContainingIgnoreCase_ShouldReturnMultipleMatches() {
-            Product gamingMouse = createProduct("Gaming Mouse Pro", "Electronics", BigDecimal.valueOf(45.0), 8, 3);
+            Product gamingMouse = createValidProduct("Gaming Mouse Pro", "Electronics", BigDecimal.valueOf(45.0), 8, 12);
             entityManager.persistAndFlush(gamingMouse);
 
             List<Product> results = productRepository.findByNameContainingIgnoreCase("mouse");
@@ -104,7 +131,7 @@ class ProductRepositoryTest {
         @Test
         @DisplayName("Debe manejar busquedas con caracteres especiales")
         void findByNameContainingIgnoreCase_ShouldHandleSpecialCharacters() {
-            Product specialProduct = createProduct("Producto-Especial_123", "Special", BigDecimal.valueOf(100.0), 5, 2);
+            Product specialProduct = createValidProduct("Producto-Especial_123", "Special", BigDecimal.valueOf(100.0), 5, 12);
             entityManager.persistAndFlush(specialProduct);
 
             List<Product> results = productRepository.findByNameContainingIgnoreCase("especial");
@@ -143,16 +170,15 @@ class ProductRepositoryTest {
         @Test
         @DisplayName("Debe encontrar productos con stock bajo (stock > 0 pero <= mínimo)")
         void findProductsWithLowStock_ShouldReturnLowStockProducts() {
-            Product sufficientStock = createProduct("Producto Suficiente", "Test",
-                    BigDecimal.valueOf(100.0), 10, 5);
+            Product sufficientStock = createValidProduct("Producto Suficiente", "Test", BigDecimal.valueOf(100.0), 25, 15);
             entityManager.persistAndFlush(sufficientStock);
 
             List<Product> results = productRepository.findProductsWithLowStock();
 
             assertThat(results)
-                    .hasSize(1)
+                    .hasSize(2)
                     .extracting(Product::getName)
-                    .containsExactly("Teclado Mecánico");
+                    .containsExactlyInAnyOrder("Laptop Gaming", "Teclado Mecánico");
         }
 
         @Test
@@ -349,18 +375,30 @@ class ProductRepositoryTest {
         }
 
         @Test
-        @DisplayName("Debe manejar productos sin minimum stock definido")
-        void shouldHandleProductsWithoutMinimumStock() {
-            Product noMinStock = createProduct("Sin Mínimo", "Test", BigDecimal.valueOf(100.0), 5, null);
-            entityManager.persistAndFlush(noMinStock);
+        @DisplayName("Debe manejar productos con minimum stock alto")
+        void shouldHandleProductsWithHighMinimumStock() {
+            Product highMinStock = createValidProduct("Con Mínimo Alto", "Test", BigDecimal.valueOf(100.0), 5, 25);
+            entityManager.persistAndFlush(highMinStock);
 
             List<Product> lowStockResults = productRepository.findProductsWithLowStock();
 
+            // Este producto debería aparecer en low stock porque tiene stock (5) menor que el mínimo (25)
             assertThat(lowStockResults).extracting(Product::getName)
-                    .doesNotContain("Sin Mínimo");
+                    .contains("Con Mínimo Alto");
+        }
+
+        @Test
+        @DisplayName("Debe manejar valores extremos de stock")
+        void shouldHandleExtremeStockValues() {
+            Product maxStock = createValidProduct("Stock Máximo", "Test", BigDecimal.valueOf(100.0), Integer.MAX_VALUE, 100);
+            Product normalMinStock = createValidProduct("Stock Normal", "Test", BigDecimal.valueOf(50.0), 15, 10);
+
+            entityManager.persistAndFlush(maxStock);
+            entityManager.persistAndFlush(normalMinStock);
+
+            List<Product> activeProducts = productRepository.findActiveProducts();
+            assertThat(activeProducts).extracting(Product::getName)
+                    .contains("Stock Máximo", "Stock Normal");
         }
     }
-
-
-
 }
